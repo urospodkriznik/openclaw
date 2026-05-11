@@ -1,0 +1,13 @@
+// Exec approvals + tool policy fragments (JSON5).
+// Host file: $OPENCLAW_CONFIG_DIR/exec-approvals.json (written by bootstrap-config.sh)
+// See: https://docs.openclaw.ai/tools/exec-approvals
+{
+  version: 1,
+  defaults: {
+    // SAFE-ish: allowlist + prompt on miss
+    security: "allowlist",
+    ask: "on-miss",
+    askFallback: "deny",
+    autoAllowSkills: false,
+  },
+}

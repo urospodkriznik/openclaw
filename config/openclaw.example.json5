@@ -1,0 +1,25 @@
+// Example OpenClaw gateway + agent defaults (JSON5).
+// Copy relevant sections into $OPENCLAW_CONFIG_DIR/openclaw.json
+// or run ./scripts/bootstrap-config.sh to generate a minimal strict-JSON version.
+{
+  gateway: {
+    mode: "local",
+    bind: "lan", // Docker publishes 18789 on the host; see docs/SECURITY.md before exposing WAN
+  },
+  agents: {
+    defaults: {
+      model: {
+        // Vertex: verify model id with `docker compose run -T --rm openclaw-cli models list --provider google-vertex`
+        primary: "google-vertex/gemini-2.0-flash-001",
+      },
+    },
+  },
+  // tools.exec is mirrored by ./scripts/bootstrap-config.sh from SAFE_MODE / FULL_AUTONOMY / DEMO_MODE
+  tools: {
+    exec: {
+      host: "gateway",
+      security: "allowlist",
+      ask: "on-miss",
+    },
+  },
+}

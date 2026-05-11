@@ -1,0 +1,9 @@
+# Local development overrides: relax resource caps, keep same services.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  openclaw-gateway:
+    mem_limit: 2g
+    cpus: 2.0
+    environment:
+      OPENCLAW_DISABLE_BONJOUR: ${OPENCLAW_DISABLE_BONJOUR:-1}

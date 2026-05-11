@@ -1,0 +1,17 @@
+// Provider hints (JSON5). OpenClaw discovers many providers automatically when auth env vars exist.
+// Vertex (google-vertex): use ADC from VM attached service account and set:
+//   GOOGLE_CLOUD_PROJECT
+//   GOOGLE_CLOUD_LOCATION
+// See: https://docs.openclaw.ai/concepts/model-providers
+{
+  // Optional OpenAI fallback: set OPENAI_API_KEY in .env, then add failover in OpenClaw config
+  // when you enable model failover (see upstream model-failover docs).
+  // agents: {
+  //   defaults: {
+  //     model: {
+  //       primary: "google-vertex/gemini-2.0-flash-001",
+  //       fallbacks: ["openai/gpt-4.1-mini"], // TODO: verify refs for your OpenClaw version
+  //     },
+  //   },
+  // },
+}

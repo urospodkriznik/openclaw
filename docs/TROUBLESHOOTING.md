@@ -1,0 +1,62 @@
+# Troubleshooting
+
+## `fetch-secrets-gsm.sh` fails
+
+When `USE_GSM_SECRETS=true`, ensure VM IAM and secret names are correct:
+
+```bash
+gcloud auth list
+gcloud secrets versions access latest --secret "$GSM_TELEGRAM_BOT_TOKEN_SECRET" --project "$GSM_PROJECT_ID"
+./scripts/validate-env.sh
+./scripts/fetch-secrets-gsm.sh
+```
+
+## Permission errors (`EACCES`) under `/home/node/.openclaw`
+
+The container runs as **UID 1000**. Fix host ownership:
+
+```bash
+sudo chown -R 1000:1000 .openclaw-config workspace
+```
+
+## Healthcheck fails immediately
+
+1. `docker compose logs --tail=200 openclaw-gateway`
+2. Confirm the gateway is listening: `ss -tlnp | grep 18789` on the host.
+3. Increase `start_period` in `docker-compose.yml` temporarily if the image is slow to boot on micro instances.
+
+## Vertex errors (`permission denied`, `not found`, `API key`)
+
+- Confirm **Vertex AI API** enabled and SA has `roles/aiplatform.user`.
+- Verify **`GOOGLE_CLOUD_LOCATION`** supports the chosen model.
+- Run `gcloud auth application-default print-access-token` **on the host** only for debugging (do not paste tokens into chats).
+
+## Telegram bot silent
+
+- Re-run channel registration with a fresh token if rotated.
+- Check gateway logs for Telegram adapter errors.
+- Confirm outbound HTTPS is allowed from the VM (NAT/firewall).
+- If using GSM mode, regenerate runtime env: `./scripts/fetch-secrets-gsm.sh`.
+
+## GitHub Actions deploy fails SSH
+
+- Verify `GCP_VM_HOST`, user, key, and port (**22** if secret omitted).
+- Ensure the deploy user can run **passwordless** `docker` (group membership).
+
+## `validate-env` complains about Telegram
+
+Production validation defaults to `VALIDATION_LEVEL=full`. For compose-only checks:
+
+```bash
+VALIDATION_LEVEL=minimal ./scripts/validate-env.sh
+```
+
+## Out of memory (exit code 137)
+
+- Move to a larger machine type or raise swap.
+- Reduce concurrent workloads; avoid browser automation plugins on e2-micro.
+
+## Further reading
+
+- [OpenClaw Docker](https://docs.openclaw.ai/install/docker)
+- [Docker VM runtime](https://docs.openclaw.ai/install/docker-vm-runtime)

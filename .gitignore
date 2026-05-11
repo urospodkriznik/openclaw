@@ -1,0 +1,39 @@
+# Local secrets and environment
+.env
+.env.generated
+.env.local
+.env.*.local
+*.pem
+id_rsa
+id_ed25519
+
+# Service account keys (never commit); keep directory with .gitkeep
+secrets/*
+!secrets/.gitkeep
+*.json.key
+*-sa.json
+gcp-sa.json
+
+# OpenClaw runtime on developer machines (if copied beside repo)
+.openclaw/
+.openclaw-config/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Backups produced by scripts
+backups/
+*.tar.gz
+
+# Workspace user data (keep directory structure via .gitkeep)
+workspace/inbox/*
+!workspace/inbox/.gitkeep
+workspace/out/*
+!workspace/out/.gitkeep
+
+# Deploy rollback / state (on server / local)
+.deploy-state/
