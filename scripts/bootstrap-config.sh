@@ -39,9 +39,11 @@ fi
 
 if [[ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]] && [[ -f "$ENV_FILE" ]]; then
   TOKEN="$(openssl rand -hex 24)"
-  echo "" >>"$ENV_FILE"
-  echo "# Added by bootstrap-config.sh" >>"$ENV_FILE"
-  echo "OPENCLAW_GATEWAY_TOKEN=$TOKEN" >>"$ENV_FILE"
+  {
+    echo ""
+    echo "# Added by bootstrap-config.sh"
+    echo "OPENCLAW_GATEWAY_TOKEN=$TOKEN"
+  } >>"$ENV_FILE"
   export OPENCLAW_GATEWAY_TOKEN="$TOKEN"
   echo "Generated OPENCLAW_GATEWAY_TOKEN and appended to .env"
 elif [[ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]]; then
