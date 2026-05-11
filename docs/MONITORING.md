@@ -10,7 +10,7 @@
 - OpenClaw exposes **unauthenticated** probes (see [Docker docs](https://docs.openclaw.ai/install/docker)):
   - `GET /healthz` — liveness
   - `GET /readyz` — readiness
-- This repo’s `scripts/healthcheck.sh` hits `/healthz` on `OPENCLAW_GATEWAY_PORT`.
+- This repo’s `scripts/healthcheck.sh` hits `/healthz` on `OPENCLAW_GATEWAY_PORT` using `curl --noproxy '*' --http1.1 -H 'Expect:'` so probes do not hang on `Expect: 100-continue`. Use the same flags for manual `curl` checks if you see timeouts with a bare `GET`.
 
 You can point **GCP Uptime checks** at an endpoint only reachable over a **secure tunnel** or internal load balancer—**do not** expose raw gateway ports to the world without auth.
 
