@@ -66,8 +66,8 @@ flowchart LR
 ## 5. Quick start (local or VM)
 
 ```bash
-git clone https://github.com/<you>/openclaw-gcp-agent.git
-cd openclaw-gcp-agent
+git clone https://github.com/<you>/openclaw.git
+cd openclaw
 cp .env.example .env
 # Edit .env: GOOGLE_CLOUD_*, VERTEX_MODEL, and local TELEGRAM_BOT_TOKEN if USE_GSM_SECRETS=false
 # For production on GCP: USE_GSM_SECRETS=true + Secret Manager names

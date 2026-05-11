@@ -12,7 +12,7 @@
 1. Clone **this** repository on the VM (same path you will use in deploy):
 
    ```bash
-   mkdir -p ~/openclaw-gcp-agent && cd ~/openclaw-gcp-agent
+   mkdir -p ~/openclaw && cd ~/openclaw
    git clone https://github.com/<you>/<repo>.git .
    ```
 
@@ -42,10 +42,10 @@ Create the following in **GitHub → Settings → Secrets and variables → Acti
 The remote script defaults to:
 
 ```bash
-DEPLOY_PATH="${DEPLOY_PATH:-$HOME/openclaw-gcp-agent}"
+DEPLOY_PATH="${DEPLOY_PATH:-$HOME/openclaw}"
 ```
 
-To use `/opt/...`, log in once and `export DEPLOY_PATH=/opt/openclaw-gcp-agent` in the server user’s `~/.profile`, **or** edit the workflow script to match your layout.
+To use another directory (e.g. `/opt/openclaw`), log in once and `export DEPLOY_PATH=/opt/openclaw` in the server user’s `~/.profile`, **or** edit the default in [.github/workflows/deploy.yml](../.github/workflows/deploy.yml).
 
 ## What deploy does
 

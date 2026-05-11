@@ -6,7 +6,7 @@
 - Recommended: `scripts/setup-swap.sh` (4G) on **e2-micro**.
 - `jq` installed (`scripts/setup-server.sh` includes it).
 - `gcloud` CLI installed when `USE_GSM_SECRETS=true`.
-- This repository cloned to e.g. `~/openclaw-gcp-agent` or `/opt/openclaw-gcp-agent`.
+- This repository cloned to e.g. `~/openclaw` or `/opt/openclaw` (must match the deploy workflow default or your `DEPLOY_PATH`).
 - VM attached service account with IAM:
   - `roles/aiplatform.user` (Vertex)
   - `roles/secretmanager.secretAccessor` (when using GSM runtime secrets)

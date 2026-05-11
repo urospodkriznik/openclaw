@@ -32,7 +32,7 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            DEPLOY_PATH="${DEPLOY_PATH:-$HOME/openclaw-gcp-agent}"
+            DEPLOY_PATH="${DEPLOY_PATH:-$HOME/openclaw}"
             if [[ ! -d "$DEPLOY_PATH/.git" ]]; then
               echo "Clone this repo to $DEPLOY_PATH on the VM first (see docs/GITHUB_ACTIONS.md)."
               exit 1
