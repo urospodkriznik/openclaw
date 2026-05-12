@@ -2,7 +2,7 @@
 
 ## Threat model (short)
 
-This template targets a **single-operator** VM with **one primary Telegram bot** and **Vertex** credentials. It is **not** safe as a multi-tenant public agent platform without substantial additional controls.
+This template targets a **single-operator** VM with **one primary Telegram bot** and a **Gemini API key** (or optional Vertex ADC). It is **not** safe as a multi-tenant public agent platform without substantial additional controls.
 
 ## Network exposure
 
@@ -11,7 +11,7 @@ This template targets a **single-operator** VM with **one primary Telegram bot**
 
 ## Secrets handling
 
-- For production, keep secrets in **Google Secret Manager** and fetch runtime values into `.env.generated` via `scripts/fetch-secrets-gsm.sh`.
+- For production, keep secrets in **Google Secret Manager** and fetch runtime values into `.env.generated` via `scripts/fetch-secrets-gsm.sh` (Telegram required; OpenAI and Gemini optional when `GSM_*` secret names are set).
 - Keep `.env` (non-secret config) and `.env.generated` (runtime secrets) **out of git** and mode `600`.
 - Prefer VM-attached service accounts / workload identity over downloadable JSON keys.
 - CI includes a **lightweight pattern scan**—it is not a substitute for secret scanning services or pre-commit hooks.

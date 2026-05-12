@@ -4,7 +4,7 @@
 ![Template](https://img.shields.io/badge/status-portfolio%20template-informational)
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-gateway-8A2BE2)
 
-**Cloneable portfolio project:** run the [OpenClaw](https://docs.openclaw.ai/) gateway on **Google Cloud** with **Docker Compose**, **Vertex AI (Gemini)**, **Telegram**, and **GitHub Actions** deploy over SSH—without committing secrets.
+**Cloneable portfolio project:** run the [OpenClaw](https://docs.openclaw.ai/) gateway on **Google Cloud** with **Docker Compose**, **Gemini (Google AI API key)**, **Telegram**, and **GitHub Actions** deploy over SSH—without committing secrets.
 
 ## 1. Project overview
 
@@ -27,15 +27,15 @@ flowchart LR
   end
   subgraph gcp [GCP]
     VM[e2_micro_VM]
-    Vertex[Vertex_AI_Gemini]
-    SA[Service_account_ADC]
+    Gemini[Gemini_API_Google_AI]
+    SA[Service_account_ADC_GSM]
   end
   subgraph cicd [CI_CD]
     GHA[GitHub_Actions]
   end
   Telegram --> Gateway[OpenClaw_gateway]
   GmailOpt -.-> Gateway
-  Gateway --> Vertex
+  Gateway --> Gemini
   SA --> Gateway
   VM --> Gateway
   GHA -->|SSH| VM
@@ -46,7 +46,7 @@ flowchart LR
 | Area | What you get |
 |------|----------------|
 | Runtime | OpenClaw gateway + CLI image, official Compose-style services |
-| LLM | **Vertex AI** via `google-vertex` + ADC (VM attached service account / IAM) |
+| LLM | **Gemini** via provider **`google`** + **`GEMINI_API_KEY`** (or Secret Manager → `.env.generated`) |
 | Channel | **Telegram** first (documented `channels add` flow) |
 | Host | Ubuntu 24.04, Docker + Compose v2, optional 4G swap script |
 | CI | ShellCheck, `docker compose config`, required files, lightweight secret-pattern scan |
@@ -57,7 +57,7 @@ flowchart LR
 
 - **Docker** 24+ and **Docker Compose v2** (see `scripts/install-docker.sh` on the VM).
 - **jq** (for `scripts/bootstrap-config.sh`).
-- A **GCP project** with billing, **Compute Engine**, and **Vertex AI API** enabled.
+- A **GCP project** with billing and **Compute Engine** (VM host). **Secret Manager** when using `USE_GSM_SECRETS=true`. **Vertex AI API** is optional (only if you use `google-vertex` instead of the default `google` provider).
 - A **Telegram Bot token** from [@BotFather](https://t.me/BotFather).
 - **GitHub** (optional) for Actions deploy.
 
@@ -69,8 +69,8 @@ flowchart LR
 git clone https://github.com/<you>/openclaw.git
 cd openclaw
 cp .env.example .env
-# Edit .env: GOOGLE_CLOUD_*, VERTEX_MODEL, and local TELEGRAM_BOT_TOKEN if USE_GSM_SECRETS=false
-# For production on GCP: USE_GSM_SECRETS=true + Secret Manager names
+# Edit .env: GOOGLE_CLOUD_*, GEMINI_API_KEY (or GSM), GEMINI_MODEL, TELEGRAM_BOT_TOKEN if USE_GSM_SECRETS=false
+# For production on GCP: USE_GSM_SECRETS=true + Secret Manager names (Telegram required; optional GSM_OPENAI_* / GSM_GEMINI_* for API keys)
 
 ./scripts/bootstrap-config.sh
 ./scripts/validate-env.sh   # set VALIDATION_LEVEL=minimal until Telegram is set, if needed
@@ -99,13 +99,19 @@ See **[docs/GCP_SETUP.md](docs/GCP_SETUP.md)** (project, APIs, VM, firewall, SSH
 
 Official reference: [Telegram channel](https://docs.openclaw.ai/channels/telegram).
 
-## 8. Vertex AI setup
+## 8. Gemini (Google AI) setup
 
-1. Enable **Vertex AI API** on your project.
-2. Create/attach a **VM service account** with `roles/aiplatform.user` (plus optional Gmail API roles if you enable hooks—see [docs/GOOGLE_INTEGRATIONS.md](docs/GOOGLE_INTEGRATIONS.md)).
-3. Set `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, and `VERTEX_MODEL` in `.env`.
+1. In [Google AI Studio](https://aistudio.google.com/apikey), create an API key for your Google Cloud project.
+2. Put **`GEMINI_API_KEY=...`** in **`.env`** on the VM, **or** store the key in **Secret Manager**, set **`GSM_GEMINI_API_KEY_SECRET`**, and run **`./scripts/fetch-secrets-gsm.sh`** (see [docs/GOOGLE_INTEGRATIONS.md](docs/GOOGLE_INTEGRATIONS.md)).
+3. Set **`GEMINI_MODEL`** in **`.env`** (default **`gemini-3-flash-preview`**); **`./scripts/bootstrap-config.sh`** writes **`google/<GEMINI_MODEL>`** into **`openclaw.json`**.
 
-Verify model ids after deploy: `docker compose run -T --rm openclaw-cli models list --provider google-vertex` (exact CLI flags can vary by OpenClaw version—see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
+Verify model ids after deploy:
+
+```bash
+docker compose run -T --rm openclaw-cli models list --provider google
+```
+
+(Optional) **Vertex AI** (`google-vertex` + ADC) is documented in [docs/GOOGLE_INTEGRATIONS.md](docs/GOOGLE_INTEGRATIONS.md) if your OpenClaw image includes that provider.
 
 ## 9. GitHub Actions setup
 

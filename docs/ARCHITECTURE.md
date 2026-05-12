@@ -7,7 +7,7 @@
 | **Telegram** | Primary human ↔ agent channel (HTTP long poll / Bot API). |
 | **OpenClaw gateway** | WebSocket gateway, sessions, tool routing, channel adapters. Runs in Docker (`openclaw-gateway`). |
 | **OpenClaw CLI** | Sidecar image sharing the gateway network namespace for non-interactive `docker compose run` operations. |
-| **Vertex AI** | Default LLM backend via provider `google-vertex` and **Application Default Credentials**. |
+| **LLM** | Default: **Gemini developer API** — provider **`google`**, auth **`GEMINI_API_KEY`** (or GSM → `.env.generated`). Optional **Vertex** (`google-vertex` + ADC) if your image loads that plugin; see [GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md). |
 | **Persistent volumes** | Host paths `OPENCLAW_CONFIG_DIR` → `/home/node/.openclaw`, `OPENCLAW_WORKSPACE_DIR` → workspace inside OpenClaw home. |
 | **GitHub Actions** | Optional CD: SSH to VM, enforce GSM mode, fetch runtime secrets, `docker compose pull && up`, health probe. |
 
@@ -20,7 +20,7 @@
 ## Data flow (happy path)
 
 1. Inbound Telegram message hits the gateway container.
-2. Gateway selects the configured model (`google-vertex/...`) and calls Vertex with ADC.
+2. Gateway selects the configured model (e.g. `google/...` or `google-vertex/...`) and calls the provider with **API key** or **ADC** respectively.
 3. Tool use (files, optional shell) operates against the **mounted workspace** and host policy.
 4. Reply returns via Telegram.
 

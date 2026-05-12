@@ -1,7 +1,6 @@
 // Provider hints (JSON5). OpenClaw discovers many providers automatically when auth env vars exist.
-// Vertex (google-vertex): use ADC from VM attached service account and set:
-//   GOOGLE_CLOUD_PROJECT
-//   GOOGLE_CLOUD_LOCATION
+// Default template: Gemini developer API (provider google) — set GEMINI_API_KEY (or GSM + fetch-secrets-gsm.sh).
+// Optional Vertex (google-vertex): ADC from VM attached service account; set GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION.
 // See: https://docs.openclaw.ai/concepts/model-providers
 {
   // Optional OpenAI fallback: set OPENAI_API_KEY in .env, then add failover in OpenClaw config
@@ -9,7 +8,7 @@
   // agents: {
   //   defaults: {
   //     model: {
-  //       primary: "google-vertex/gemini-2.0-flash-001",
+  //       primary: "google/gemini-3-flash-preview",
   //       fallbacks: ["openai/gpt-4.1-mini"], // TODO: verify refs for your OpenClaw version
   //     },
   //   },

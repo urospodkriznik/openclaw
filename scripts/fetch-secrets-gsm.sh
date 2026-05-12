@@ -39,6 +39,7 @@ fi
 
 TELEGRAM_SECRET="${GSM_TELEGRAM_BOT_TOKEN_SECRET:-}"
 OPENAI_SECRET="${GSM_OPENAI_API_KEY_SECRET:-}"
+GEMINI_SECRET="${GSM_GEMINI_API_KEY_SECRET:-}"
 if [[ -z "$TELEGRAM_SECRET" ]]; then
   echo "fetch-secrets-gsm: set GSM_TELEGRAM_BOT_TOKEN_SECRET" >&2
   exit 1
@@ -49,12 +50,19 @@ openai_value=""
 if [[ -n "$OPENAI_SECRET" ]]; then
   openai_value="$(gcloud secrets versions access latest --secret="$OPENAI_SECRET" --project="$PROJECT" 2>/dev/null || true)"
 fi
+gemini_value=""
+if [[ -n "$GEMINI_SECRET" ]]; then
+  gemini_value="$(gcloud secrets versions access latest --secret="$GEMINI_SECRET" --project="$PROJECT" 2>/dev/null || true)"
+fi
 
 umask 077
 {
   printf 'TELEGRAM_BOT_TOKEN=%s\n' "$telegram_value"
   if [[ -n "$openai_value" ]]; then
     printf 'OPENAI_API_KEY=%s\n' "$openai_value"
+  fi
+  if [[ -n "$gemini_value" ]]; then
+    printf 'GEMINI_API_KEY=%s\n' "$gemini_value"
   fi
 } > "$ROOT_DIR/.env.generated"
 umask 022

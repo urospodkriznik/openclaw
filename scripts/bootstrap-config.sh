@@ -29,7 +29,7 @@ truthy() {
   esac
 }
 
-PRIMARY_MODEL="google-vertex/${VERTEX_MODEL:-gemini-2.0-flash-001}"
+PRIMARY_MODEL="google/${GEMINI_MODEL:-gemini-3-flash-preview}"
 
 # Host .env token for compose interpolation
 if [[ -f "$ENV_FILE" ]] && grep -qE '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE"; then
@@ -124,4 +124,4 @@ mv "${OPENCLAW_JSON}.tmp" "$OPENCLAW_JSON"
 
 echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL)"
 echo "Next: add Telegram — docker compose run -T --rm openclaw-cli channels add --channel telegram --token \"\$TELEGRAM_BOT_TOKEN\""
-echo "Vertex auth: for production use VM-attached IAM service account (ADC) with roles/aiplatform.user."
+echo "Gemini: set GEMINI_API_KEY in .env (or GSM_GEMINI_API_KEY_SECRET + fetch-secrets-gsm.sh). Verify: docker compose run -T --rm openclaw-cli models list --provider google"

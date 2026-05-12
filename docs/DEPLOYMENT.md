@@ -8,8 +8,8 @@
 - `gcloud` CLI installed when `USE_GSM_SECRETS=true`.
 - This repository cloned to e.g. `~/openclaw` or `/opt/openclaw` (must match the deploy workflow default or your `DEPLOY_PATH`).
 - VM attached service account with IAM:
-  - `roles/aiplatform.user` (Vertex)
   - `roles/secretmanager.secretAccessor` (when using GSM runtime secrets)
+  - `roles/aiplatform.user` (optional — only if you use **Vertex** / `google-vertex`)
 
 ## Initial bootstrap
 
@@ -18,7 +18,7 @@
    - Ensures `OPENCLAW_GATEWAY_TOKEN` exists (appends to `.env` if missing).
    - Writes `$OPENCLAW_CONFIG_DIR/openclaw.json` and `exec-approvals.json` from autonomy flags (re-runs overwrite these files—keep advanced edits elsewhere or adjust the script).
 3. `./scripts/validate-env.sh`
-4. `./scripts/fetch-secrets-gsm.sh` (required for `USE_GSM_SECRETS=true`; writes `.env.generated`)
+4. `./scripts/fetch-secrets-gsm.sh` (required for `USE_GSM_SECRETS=true`; writes `.env.generated` with Telegram and optional `OPENAI_API_KEY` / `GEMINI_API_KEY` when `GSM_OPENAI_API_KEY_SECRET` / `GSM_GEMINI_API_KEY_SECRET` are set)
 5. `docker compose up -d`
 6. `./scripts/healthcheck.sh`
 7. One-time Telegram registration:
@@ -39,15 +39,15 @@ Replace `main` with a release tag when you verify one (see GHCR tags in the upst
 
 ## Non-interactive Vertex onboarding
 
-OpenClaw’s Docker flow often uses `./scripts/docker/setup.sh` **inside the upstream repository**. This template **does not** vendor that tree; instead it **seeds** `openclaw.json` with a primary model ref `google-vertex/<VERTEX_MODEL>`.
+OpenClaw’s Docker flow often uses `./scripts/docker/setup.sh` **inside the upstream repository**. This template **does not** vendor that tree; instead it **seeds** `openclaw.json` with a primary model ref **`google/<GEMINI_MODEL>`** (Gemini developer API + `GEMINI_API_KEY`).
 
-**TODO:** Confirm the exact non-interactive `onboard` / `models auth` steps for `google-vertex` for your pinned image version. If the gateway rejects the model ref, run:
+If the gateway rejects the model ref, run:
 
 ```bash
-docker compose run -T --rm openclaw-cli models list --provider google-vertex
+docker compose run -T --rm openclaw-cli models list --provider google
 ```
 
-and adjust `VERTEX_MODEL` / `openclaw.json`.
+and adjust **`GEMINI_MODEL`** / `openclaw.json`. For **Vertex** (`google-vertex`) instead, set **`primary`** manually and enable **Vertex AI API** + ADC; see [docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md).
 
 ## Compose overrides
 

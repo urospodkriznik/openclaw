@@ -25,6 +25,9 @@
    - `GSM_PROJECT_ID=<your-project>` (optional if equal to `GOOGLE_CLOUD_PROJECT`)
    - `GSM_TELEGRAM_BOT_TOKEN_SECRET=<secret-name>`
    - `GSM_OPENAI_API_KEY_SECRET=<optional-secret-name>`
+   - `GSM_GEMINI_API_KEY_SECRET=<optional-secret-name>` (Gemini developer API key for provider `google`)
+   - `GEMINI_MODEL` (defaults in `.env.example`; override if needed)
+   - For local keys instead of GSM: `GEMINI_API_KEY` in `.env` (never commit)
 
 ## Secrets
 

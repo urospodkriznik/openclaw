@@ -9,8 +9,8 @@
   agents: {
     defaults: {
       model: {
-        // Vertex: verify model id with `docker compose run -T --rm openclaw-cli models list --provider google-vertex`
-        primary: "google-vertex/gemini-2.0-flash-001",
+        // Gemini (google): verify model id with `docker compose run -T --rm openclaw-cli models list --provider google`
+        primary: "google/gemini-3-flash-preview",
       },
     },
   },
