@@ -17,7 +17,7 @@ gcloud secrets versions access latest --secret "$GSM_TELEGRAM_BOT_TOKEN_SECRET" 
 
 After the gateway has run, bind-mounted files under **`.openclaw-config`** are often owned by **UID 1000** (the `node` user in the image). Your SSH deploy user then cannot overwrite **`openclaw.json`** or **`.openclaw-config/.env`** during CI.
 
-**Automated path:** [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) and **`./scripts/deploy.sh`** run **`./scripts/reown-openclaw-mounts.sh --host`** before bootstrap and **`--container`** before **`docker compose up`**. That needs **passwordless `sudo`** for **`chown`** on the VM for the deploy user (see [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md)).
+**Automated path:** [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) and **`./scripts/deploy.sh`** run **`./scripts/reown-openclaw-mounts.sh --host`** before bootstrap and **`--container`** before **`docker compose up`**. That needs **passwordless `sudo`** for the **`chown`** path returned by **`command -v chown`** on the VM (often **`/usr/bin/chown`** — your **`NOPASSWD:`** line must use that exact path). See [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md).
 
 **Manual once:**
 

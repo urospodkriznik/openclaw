@@ -20,11 +20,13 @@
    - `roles/secretmanager.secretAccessor` (GSM)
    - `roles/aiplatform.user` (optional — only if you use Vertex / `google-vertex`)
 
-3. **Deploy user + `sudo`:** the deploy workflow runs **`./scripts/reown-openclaw-mounts.sh`** so the SSH user can refresh **`.openclaw-config`** after Docker has created files as **UID 1000**, then hands ownership back to **1000:1000** before **`docker compose up`**. Configure **passwordless** `sudo` for **`chown`** for that user (example — tighten for your org):
+3. **Deploy user + `sudo`:** the deploy workflow runs **`./scripts/reown-openclaw-mounts.sh`** so the SSH user can refresh **`.openclaw-config`** after Docker has created files as **UID 1000**, then hands ownership back to **1000:1000** before **`docker compose up`**. Configure **passwordless** `sudo` for the **`chown`** binary that exists on the VM (path must match what `command -v chown` prints — often **`/usr/bin/chown`** on Ubuntu):
 
    ```text
    yourdeployuser ALL=(ALL) NOPASSWD: /usr/bin/chown
    ```
+
+   On some images `chown` is **`/bin/chown`**; if `sudo -n "$(command -v chown)" --help` still fails after editing sudoers, add that path too (comma-separated in `NOPASSWD`).
 
    See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if bootstrap fails with **Permission denied** on **`.openclaw-config/.env`**.
 

@@ -24,8 +24,19 @@ usage() {
 
 [[ "${1:-}" == "--host" ]] || [[ "${1:-}" == "--container" ]] || usage
 
+# NOPASSWD in sudoers must match the real chown path (often /usr/bin/chown on Ubuntu, /bin/chown elsewhere).
+CHOWN_BIN="$(command -v chown || true)"
+if [[ -z "$CHOWN_BIN" ]]; then
+  echo "reown-openclaw-mounts: chown not found in PATH" >&2
+  exit 1
+fi
+
+# Do not use "sudo -n true": sudoers like "NOPASSWD: /usr/bin/chown" do not cover /usr/bin/true.
 need_sudo_chown() {
-  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  if ! command -v sudo >/dev/null 2>&1; then
+    return 1
+  fi
+  if sudo -n "$CHOWN_BIN" --help >/dev/null 2>&1; then
     return 0
   fi
   return 1
@@ -39,13 +50,13 @@ if [[ "$1" == "--host" ]]; then
     exit 0
   fi
   if ! need_sudo_chown; then
-    echo "reown-openclaw-mounts: not writable by $(id -un); passwordless sudo required, e.g. in sudoers:" >&2
-    echo "  $(id -un) ALL=(ALL) NOPASSWD: /bin/chown" >&2
-    echo "Then run: sudo chown -R \"$(id -un):$(id -gn)\" \"$ROOT_DIR/$CONFIG_DIR\" \"$ROOT_DIR/$WORKSPACE_DIR\"" >&2
+    echo "reown-openclaw-mounts: not writable by $(id -un); passwordless sudo required for this exact binary:" >&2
+    echo "  $(id -un) ALL=(ALL) NOPASSWD: $CHOWN_BIN" >&2
+    echo "Then run: sudo \"$CHOWN_BIN\" -R \"$(id -un):$(id -gn)\" \"$ROOT_DIR/$CONFIG_DIR\" \"$ROOT_DIR/$WORKSPACE_DIR\"" >&2
     exit 1
   fi
   echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR -> $(id -un):$(id -gn) (for bootstrap)"
-  sudo -n chown -R "$(id -un):$(id -gn)" "$CONFIG_DIR" "$WORKSPACE_DIR"
+  sudo -n "$CHOWN_BIN" -R "$(id -un):$(id -gn)" "$CONFIG_DIR" "$WORKSPACE_DIR"
   exit 0
 fi
 
@@ -60,4 +71,4 @@ if ! need_sudo_chown; then
   exit 1
 fi
 echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR -> 1000:1000 (for container)"
-sudo -n chown -R 1000:1000 "$CONFIG_DIR" "$WORKSPACE_DIR"
+sudo -n "$CHOWN_BIN" -R 1000:1000 "$CONFIG_DIR" "$WORKSPACE_DIR"
