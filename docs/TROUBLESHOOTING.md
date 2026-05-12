@@ -64,6 +64,28 @@ Re-run **`./scripts/bootstrap-config.sh`** on the VM (or redeploy), then **`dock
 
 If it persists, check gateway logs for **session key** stability and inspect sessions per [Session management](https://docs.openclaw.ai/concepts/session) (e.g. **`docker compose exec openclaw-cli sh -lc 'node dist/index.js sessions --help'`** on your OpenClaw version).
 
+## Exec approval timed out / agent “won’t re-run” shell or `openclaw` commands
+
+Default **`SAFE_MODE`** sets **`tools.exec.ask: on-miss`** and **`askFallback: deny`**. [Exec approvals](https://docs.openclaw.ai/tools/exec-approvals) need a **Control UI / companion** to approve; on a **headless** gateway, prompts expire with nobody attached.
+
+**Options:**
+
+1. **SSH tunnel** the Control UI: `ssh -L 18789:127.0.0.1:18789 user@vm` then open `http://127.0.0.1:18789/`.
+2. **Single trusted VM:** **`TRUSTED_HEADLESS_EXEC=true`** and **`I_ACCEPT_HEADLESS_EXEC_RISK=1`** in **`.env`**, then **`./scripts/bootstrap-config.sh`** + gateway restart ([docs/SECURITY.md](SECURITY.md)).
+3. Upstream break-glass chat commands (e.g. **`/elevated full`**) for operators who understand the risk.
+
+## Google Workspace from chat (Gmail, Calendar, Drive)
+
+This template does **not** install Gmail, Calendar, or Drive skills. The agent only gets those abilities after you add skills (or MCP) and auth.
+
+| Goal | What to do |
+|------|------------|
+| **Send/read email** | Install a **Gmail or SMTP skill** from [ClawHub](https://documentation.openclaw.ai/clawhub) (`openclaw skills search "gmail"`). Optional automation: [Gmail Pub/Sub](https://docs.openclaw.ai/automation/gmail-pubsub) (not the same as “send mail” in chat). |
+| **Calendar events** | Install a **Calendar API skill** (`openclaw skills search "calendar"`). Enable **Google Calendar API** in GCP; OAuth or service account per skill. |
+| **Drive files** | Install a **Drive / Workspace skill** (`openclaw skills search "drive"`). Enable **Google Drive API** in GCP; OAuth per skill. |
+
+Details, API enablement, and OAuth vs Secret Manager: **[docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md)**.
+
 ## Telegram bot silent
 
 - Re-run channel registration with a fresh token if rotated.

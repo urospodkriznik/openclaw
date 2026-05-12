@@ -65,7 +65,22 @@ EOF
 umask 022
 
 EXEC_FILE="${CONFIG_DIR}/exec-approvals.json"
+# Headless VM (Telegram-only): SAFE_MODE ask=on-miss needs Control UI / companion to approve;
+# without it, prompts time out and shell/help commands fail. TRUSTED_HEADLESS_EXEC opens gateway
+# exec the same way as FULL_AUTONOMY for tools only — still set I_ACCEPT_HEADLESS_EXEC_RISK=1.
 if truthy "${FULL_AUTONOMY:-false}" && truthy "${I_ACCEPT_FULL_AUTONOMY_RISK:-}"; then
+  cat >"$EXEC_FILE" <<'EOF'
+{
+  "version": 1,
+  "defaults": {
+    "security": "full",
+    "ask": "off",
+    "askFallback": "full",
+    "autoAllowSkills": false
+  }
+}
+EOF
+elif truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}"; then
   cat >"$EXEC_FILE" <<'EOF'
 {
   "version": 1,
@@ -111,6 +126,9 @@ TOOLS_ASK="on-miss"
 if truthy "${FULL_AUTONOMY:-false}" && truthy "${I_ACCEPT_FULL_AUTONOMY_RISK:-}"; then
   TOOLS_SECURITY="full"
   TOOLS_ASK="off"
+elif truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}"; then
+  TOOLS_SECURITY="full"
+  TOOLS_ASK="off"
 elif truthy "${DEMO_MODE:-false}"; then
   TOOLS_SECURITY="allowlist"
   TOOLS_ASK="always"
@@ -140,5 +158,8 @@ jq -n \
 mv "${OPENCLAW_JSON}.tmp" "$OPENCLAW_JSON"
 
 echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL)"
+if truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}" && ! truthy "${FULL_AUTONOMY:-false}"; then
+  echo "Headless exec: tools.exec + exec-approvals use security=full ask=off (no Control UI). Gmail/Calendar/Drive need skills + OAuth per docs/GOOGLE_INTEGRATIONS.md."
+fi
 echo "Next: add Telegram — docker compose run -T --rm openclaw-cli channels add --channel telegram --token \"\$TELEGRAM_BOT_TOKEN\""
 echo "Gemini: set GEMINI_API_KEY in .env (or GSM_GEMINI_API_KEY_SECRET + fetch-secrets-gsm.sh). Verify: docker compose run -T --rm openclaw-cli models list --provider google"

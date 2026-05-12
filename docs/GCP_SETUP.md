@@ -21,13 +21,22 @@ Optional (only if you follow [Gmail Pub/Sub](https://docs.openclaw.ai/automation
 - **Gmail API**
 - **Cloud Pub/Sub API**
 
+Optional (only if you install **Google Workspace–style skills** that call Google APIs using credentials tied to **this** GCP project—OAuth client or service account):
+
+- **Google Calendar API**
+- **Google Drive API**
+
 CLI example:
 
 ```bash
 gcloud services enable compute.googleapis.com secretmanager.googleapis.com --project "$PROJECT_ID"
 # Optional, for Vertex-backed models only:
 # gcloud services enable aiplatform.googleapis.com --project "$PROJECT_ID"
+# Optional, for Calendar/Drive skills that use this project's Google Cloud OAuth or SA:
+# gcloud services enable calendar.googleapis.com drive.googleapis.com --project "$PROJECT_ID"
 ```
+
+## 3. Create the VM
 
 Suggested first VM (PoC):
 

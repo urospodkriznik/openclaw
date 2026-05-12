@@ -27,7 +27,7 @@ This template targets a **single-operator** VM with **one primary Telegram bot**
 ### DEMO (`DEMO_MODE=true`)
 
 - For screenshots / portfolio demos.
-- **Mutually exclusive** with `FULL_AUTONOMY`.
+- **Mutually exclusive** with `FULL_AUTONOMY` and with **`TRUSTED_HEADLESS_EXEC`**.
 - Keeps Gmail hooks off; uses stricter **ask** behavior for exec approvals.
 
 ### FULL AUTONOMY (`FULL_AUTONOMY=true`)
@@ -35,6 +35,12 @@ This template targets a **single-operator** VM with **one primary Telegram bot**
 - **Dangerous:** aligns with OpenClaw “YOLO” style policies (broad host exec, approvals off).
 - Requires **`I_ACCEPT_FULL_AUTONOMY_RISK=1`** or `validate-env.sh` fails.
 - Use only in an **isolated** GCP project and with full understanding of [Exec approvals](https://docs.openclaw.ai/tools/exec-approvals).
+
+### TRUSTED HEADLESS EXEC (`TRUSTED_HEADLESS_EXEC=true`)
+
+- For **SSH / Telegram-only** VMs where the [Control UI](https://docs.openclaw.ai/gateway/control-ui) is not running: default **`ask: on-miss`** prompts **cannot be answered**, so shell/exec requests **time out** ([Exec approvals](https://docs.openclaw.ai/tools/exec-approvals)).
+- With **`I_ACCEPT_HEADLESS_EXEC_RISK=1`**, **`./scripts/bootstrap-config.sh`** writes the same **gateway** `tools.exec` + **`exec-approvals.json`** defaults as **FULL AUTONOMY** for **host exec only**. Do **not** combine with **`FULL_AUTONOMY`** or **`DEMO_MODE`** (`validate-env.sh` enforces this).
+- Prefer an **SSH tunnel** to port **18789** and approvals in the Control UI if you want to keep **`SAFE_MODE`**-style exec without auto-allow.
 
 ## Filesystem
 

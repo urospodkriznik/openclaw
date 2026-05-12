@@ -18,24 +18,40 @@ Enable **Vertex AI API** and grant the SA `roles/aiplatform.user`.
 
 ## Gmail (optional, advanced)
 
-OpenClaw can connect Gmail push via **Pub/Sub** when explicitly configured. This template keeps hooks **off** by default:
+**Sending mail or reading inbox in chat** usually requires an **OpenClaw skill** (Gmail, SMTP, etc.) from **ClawHub** / upstream docs—not this template alone.
+
+OpenClaw can also connect Gmail **push** via **Pub/Sub** when explicitly configured. This template keeps hooks **off** by default:
 
 - `.env`: `ENABLE_GMAIL_HOOKS=false`, `OPENCLAW_SKIP_GMAIL_WATCHER=1` (default in Compose).
 
 To explore enabling it, read the official guide: [Gmail Pub/Sub](https://docs.openclaw.ai/automation/gmail-pubsub). Expect additional GCP resources (topics, IAM bindings) and OAuth/consent considerations.
 
-## Google Calendar
+## Google Calendar (from chat — not built-in)
 
-There is **no** turnkey “Calendar channel” documented like Telegram. Practical options:
+There is **no** Telegram-style “Calendar channel” in this template. To let the agent **list/create/update events** from chat, add an **OpenClaw skill** (or MCP) that wraps the **Google Calendar API**.
 
-- Periodic checks via OpenClaw **cron** / automation (see [Scheduled tasks](https://docs.openclaw.ai/automation/gmail-pubsub) index for cron).
-- Custom tooling via **Google Calendar API** (OAuth or service account with domain-wide delegation)—**TODO:** wire as a skill/MCP in your fork; not enabled in this template.
+**Typical path**
 
-## Google Drive
+1. **Discover / install a skill** — [ClawHub](https://clawhub.ai/) and native OpenClaw flows: `openclaw skills search "calendar"` then `openclaw skills install <slug>` (see [ClawHub](https://documentation.openclaw.ai/clawhub)). Example public listing: [Google Calendar on ClawHub](https://clawhub.ai/skills/google-calendar) (verify the slug and version match your gateway).
+2. **GCP** — Enable **Google Calendar API** on the same (or linked) Google Cloud project as your OAuth client or service account.
+3. **Auth** — Most skills expect **OAuth** (user consent) or a **workspace admin** setup with **domain-wide delegation** for a service account. Store refresh tokens / secrets only in OpenClaw’s auth store or Secret Manager—**never** in git.
+4. **Automation without chat** — You can also use OpenClaw **cron** / scheduled tasks ([automation index](https://docs.openclaw.ai/automation/gmail-pubsub)) to poll Calendar; that is separate from “agent replies in Telegram.”
 
-Same story as Calendar: treat as **optional API integration** you add explicitly. **Do not** imply this repo grants Drive access out of the box.
+This repo does **not** configure Calendar API credentials for you.
+
+## Google Drive (from chat — not built-in)
+
+Same model as Calendar: **no** first-class Drive channel here. For **upload, download, search, or edit** files from chat, install a **Drive- or Workspace-capable skill** (or MCP) and complete its auth.
+
+**Typical path**
+
+1. **ClawHub / skills** — `openclaw skills search "drive"` or `"google workspace"` and install the skill your operator trusts; follow that skill’s `SKILL.md` for scopes and setup.
+2. **GCP** — Enable **Google Drive API** on your project when the skill uses Google Cloud OAuth or a service account in that project.
+3. **Auth** — Usually **OAuth** for “my Drive”; shared drives / org-wide access may need admin configuration and narrower scopes per skill docs.
+
+This repo does **not** mount Drive-specific secrets or enable Drive API by default.
 
 ## Secret Manager + IAM vs OAuth
 
 - **GCP production (this template):** use VM IAM + **Google Secret Manager** for bot tokens and optional API keys (OpenAI, Gemini developer API via `GSM_*` env vars and `fetch-secrets-gsm.sh`).
-- **OAuth:** still common for user-owned Gmail/Calendar; more moving parts (consent screen, refresh tokens). Document your chosen path in a private runbook—**never** commit tokens.
+- **OAuth:** still common for user-owned Gmail/Calendar/Drive when you add **skills**; more moving parts (consent screen, refresh tokens). Prefer OpenClaw’s auth store or GSM for those secrets—**never** commit tokens.

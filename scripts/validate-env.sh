@@ -38,6 +38,18 @@ if truthy "${FULL_AUTONOMY:-false}"; then
   fi
 fi
 
+if truthy "${TRUSTED_HEADLESS_EXEC:-false}"; then
+  if truthy "${FULL_AUTONOMY:-false}"; then
+    err "TRUSTED_HEADLESS_EXEC and FULL_AUTONOMY cannot both be true (use only one)."
+  fi
+  if truthy "${DEMO_MODE:-false}"; then
+    err "TRUSTED_HEADLESS_EXEC cannot be used with DEMO_MODE."
+  fi
+  if ! truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}"; then
+    err "TRUSTED_HEADLESS_EXEC=true requires I_ACCEPT_HEADLESS_EXEC_RISK=1 (headless gateway: exec approvals cannot be answered without Control UI unless policy is opened)."
+  fi
+fi
+
 if truthy "${DEMO_MODE:-false}"; then
   if truthy "${ENABLE_GMAIL_HOOKS:-false}"; then
     err "DEMO_MODE requires ENABLE_GMAIL_HOOKS=false."

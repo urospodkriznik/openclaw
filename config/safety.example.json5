@@ -1,6 +1,8 @@
 // Exec approvals + tool policy fragments (JSON5).
 // Host file: $OPENCLAW_CONFIG_DIR/exec-approvals.json (written by bootstrap-config.sh)
 // See: https://docs.openclaw.ai/tools/exec-approvals
+// Headless VM: set TRUSTED_HEADLESS_EXEC=true + I_ACCEPT_HEADLESS_EXEC_RISK=1 in .env and re-bootstrap
+// for security=full / ask=off (or use Control UI over SSH tunnel to 18789 instead).
 {
   version: 1,
   defaults: {
