@@ -65,7 +65,7 @@ To use another directory (e.g. `/opt/openclaw`), log in once and `export DEPLOY_
 1. `git fetch` + fast-forward `main`.
 2. Ensures `USE_GSM_SECRETS=true` in `.env` (production default).
 3. **`./scripts/reown-openclaw-mounts.sh --host`** (so bootstrap can write bind-mounted config).
-4. `./scripts/bootstrap-config.sh` + `./scripts/validate-env.sh`.
+4. `./scripts/bootstrap-config.sh`, `./scripts/align-gmail-watcher-env.sh` (if `ENABLE_GMAIL_HOOKS=true`, forces `OPENCLAW_SKIP_GMAIL_WATCHER=0`), then `./scripts/validate-env.sh`.
 5. `./scripts/fetch-secrets-gsm.sh` to generate `.env.generated` from Secret Manager.
 6. **`./scripts/reown-openclaw-mounts.sh --container`** (restore **UID 1000** ownership for the gateway image).
 7. `docker compose pull && up -d`.

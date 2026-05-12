@@ -16,6 +16,7 @@ NEW_HEAD="$(git rev-parse HEAD)"
 
 ./scripts/reown-openclaw-mounts.sh --host
 ./scripts/bootstrap-config.sh
+./scripts/align-gmail-watcher-env.sh
 ./scripts/validate-env.sh
 ./scripts/fetch-secrets-gsm.sh
 ./scripts/reown-openclaw-mounts.sh --container

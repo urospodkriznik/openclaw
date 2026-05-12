@@ -70,7 +70,7 @@ fi
 
 if truthy "${ENABLE_GMAIL_HOOKS:-false}"; then
   if [[ "${OPENCLAW_SKIP_GMAIL_WATCHER:-1}" == "1" ]]; then
-    err "ENABLE_GMAIL_HOOKS=true requires OPENCLAW_SKIP_GMAIL_WATCHER=0"
+    err "ENABLE_GMAIL_HOOKS=true requires OPENCLAW_SKIP_GMAIL_WATCHER=0 (set it in .env, or run ./scripts/align-gmail-watcher-env.sh before validate; deploy does this automatically)."
   fi
 fi
 
