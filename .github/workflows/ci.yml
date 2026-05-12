@@ -34,6 +34,7 @@ jobs:
             scripts/validate-env.sh \
             scripts/fetch-secrets-gsm.sh \
             scripts/bootstrap-config.sh \
+            scripts/reown-openclaw-mounts.sh \
             config/openclaw.example.json5 \
             config/safety.example.json5 \
             config/providers.example.json5; do

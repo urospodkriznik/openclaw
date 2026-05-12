@@ -14,9 +14,11 @@ git pull --ff-only
 
 NEW_HEAD="$(git rev-parse HEAD)"
 
+./scripts/reown-openclaw-mounts.sh --host
 ./scripts/bootstrap-config.sh
 ./scripts/validate-env.sh
 ./scripts/fetch-secrets-gsm.sh
+./scripts/reown-openclaw-mounts.sh --container
 
 docker compose -f docker-compose.yml pull
 docker compose -f docker-compose.yml up -d

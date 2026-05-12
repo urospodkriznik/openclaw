@@ -55,9 +55,11 @@ jobs:
             mv .env.tmp .env
             echo 'USE_GSM_SECRETS=true' >> .env
             export VALIDATION_LEVEL=full
+            ./scripts/reown-openclaw-mounts.sh --host
             ./scripts/bootstrap-config.sh
             ./scripts/validate-env.sh
             ./scripts/fetch-secrets-gsm.sh
+            ./scripts/reown-openclaw-mounts.sh --container
             docker compose -f docker-compose.yml pull
             docker compose -f docker-compose.yml up -d
             if ! ./scripts/healthcheck.sh; then

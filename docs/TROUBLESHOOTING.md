@@ -13,9 +13,23 @@ gcloud secrets versions access latest --secret "$GSM_TELEGRAM_BOT_TOKEN_SECRET" 
 ./scripts/fetch-secrets-gsm.sh
 ```
 
+## `bootstrap-config.sh`: Permission denied on `.openclaw-config/.env`
+
+After the gateway has run, bind-mounted files under **`.openclaw-config`** are often owned by **UID 1000** (the `node` user in the image). Your SSH deploy user then cannot overwrite **`openclaw.json`** or **`.openclaw-config/.env`** during CI.
+
+**Automated path:** [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) and **`./scripts/deploy.sh`** run **`./scripts/reown-openclaw-mounts.sh --host`** before bootstrap and **`--container`** before **`docker compose up`**. That needs **passwordless `sudo`** for **`chown`** on the VM for the deploy user (see [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md)).
+
+**Manual once:**
+
+```bash
+sudo chown -R "$(id -un):$(id -gn)" .openclaw-config workspace
+# after bootstrap, before starting containers again:
+sudo chown -R 1000:1000 .openclaw-config workspace
+```
+
 ## Permission errors (`EACCES`) under `/home/node/.openclaw`
 
-The container runs as **UID 1000**. Fix host ownership:
+The container runs as **UID 1000**. Fix host ownership (same as **`reown-openclaw-mounts.sh --container`**):
 
 ```bash
 sudo chown -R 1000:1000 .openclaw-config workspace

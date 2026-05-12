@@ -17,6 +17,12 @@ fi
 CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-./.openclaw-config}"
 mkdir -p "$CONFIG_DIR"
 
+if [[ ! -w "$CONFIG_DIR" ]]; then
+  echo "bootstrap-config: error: $CONFIG_DIR is not writable by $(id -un) (common after Docker created it as UID 1000)." >&2
+  echo "From repo root run: ./scripts/reown-openclaw-mounts.sh --host  (needs passwordless sudo; see docs/TROUBLESHOOTING.md)" >&2
+  exit 1
+fi
+
 if ! command -v jq >/dev/null 2>&1; then
   echo "bootstrap-config: install jq (e.g. apt install jq / brew install jq)" >&2
   exit 1

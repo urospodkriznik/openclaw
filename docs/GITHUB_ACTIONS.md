@@ -17,10 +17,18 @@
    ```
 
 2. Attach a VM service account with IAM:
-   - `roles/aiplatform.user`
-   - `roles/secretmanager.secretAccessor`
+   - `roles/secretmanager.secretAccessor` (GSM)
+   - `roles/aiplatform.user` (optional — only if you use Vertex / `google-vertex`)
 
-3. Create a starter `.env` on the VM with non-secret defaults (paths, image, autonomy flags), and set:
+3. **Deploy user + `sudo`:** the deploy workflow runs **`./scripts/reown-openclaw-mounts.sh`** so the SSH user can refresh **`.openclaw-config`** after Docker has created files as **UID 1000**, then hands ownership back to **1000:1000** before **`docker compose up`**. Configure **passwordless** `sudo` for **`chown`** for that user (example — tighten for your org):
+
+   ```text
+   yourdeployuser ALL=(ALL) NOPASSWD: /usr/bin/chown
+   ```
+
+   See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if bootstrap fails with **Permission denied** on **`.openclaw-config/.env`**.
+
+4. Create a starter `.env` on the VM with non-secret defaults (paths, image, autonomy flags), and set:
    - `USE_GSM_SECRETS=true`
    - `GSM_PROJECT_ID=<your-project>` (optional if equal to `GOOGLE_CLOUD_PROJECT`)
    - `GSM_TELEGRAM_BOT_TOKEN_SECRET=<secret-name>`
@@ -54,10 +62,12 @@ To use another directory (e.g. `/opt/openclaw`), log in once and `export DEPLOY_
 
 1. `git fetch` + fast-forward `main`.
 2. Ensures `USE_GSM_SECRETS=true` in `.env` (production default).
-3. `./scripts/bootstrap-config.sh` + `./scripts/validate-env.sh`.
-4. `./scripts/fetch-secrets-gsm.sh` to generate `.env.generated` from Secret Manager.
-5. `docker compose pull && up -d`.
-6. `./scripts/healthcheck.sh`; on failure prints recent logs.
+3. **`./scripts/reown-openclaw-mounts.sh --host`** (so bootstrap can write bind-mounted config).
+4. `./scripts/bootstrap-config.sh` + `./scripts/validate-env.sh`.
+5. `./scripts/fetch-secrets-gsm.sh` to generate `.env.generated` from Secret Manager.
+6. **`./scripts/reown-openclaw-mounts.sh --container`** (restore **UID 1000** ownership for the gateway image).
+7. `docker compose pull && up -d`.
+8. `./scripts/healthcheck.sh`; on failure prints recent logs.
 
 ## Branch protection
 
