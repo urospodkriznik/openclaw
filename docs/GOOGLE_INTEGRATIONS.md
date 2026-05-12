@@ -16,9 +16,109 @@
 
 Enable **Vertex AI API** and grant the SA `roles/aiplatform.user`.
 
+## Same Google account as the GCP project owner?
+
+Often **yes**: the person who created the GCP project can use the **same** Google identity for Gmail and Calendar in skills. That does **not** make auth automatic.
+
+- **What already “just works” on the VM:** **Gemini** (`GEMINI_API_KEY` / GSM) and **GCP APIs** the **VM service account** is allowed to call (Secret Manager, optional Vertex). Those are **not** your personal Gmail or Calendar.
+- **Gmail / Calendar / Drive as you:** Google still requires either **OAuth** (sign in once; skills store refresh tokens under the bind-mounted **`.openclaw-config`**) or, for SMTP-only paths, an **App Password**. The project owner account does not get a shortcut that skips that.
+- **Usually easier than IMAP:** install **OAuth-based** Gmail and Calendar skills from [ClawHub](https://documentation.openclaw.ai/clawhub), create an **OAuth client** in **Google Cloud Console** in this **same** project (Desktop / Web app per skill docs), enable **Gmail** / **Calendar** APIs, run the skill’s login flow once with **that same account**. After that it feels like one Google account for everything.
+- **Google Workspace (company domain):** admins can grant **domain-wide delegation** to a **service account** so automation does not use your personal password—more setup, not simpler for a solo `@gmail.com` consumer mailbox.
+
+## Step-by-step: OAuth for Gmail, Calendar, and Drive (same GCP project)
+
+Use this when you want the **same personal Google account** that owns the GCP project to power **mail + calendar + Drive** in chat via **skills** (recommended over IMAP/App Passwords when the skill supports OAuth).
+
+**Assumptions:** OpenClaw is running with this repo’s **Docker Compose** on a host where you can SSH; config persists under **`OPENCLAW_CONFIG_DIR`** (default **`./.openclaw-config`**). All shell examples run from the directory that contains **`docker-compose.yml`** (on the VM, often **`~/openclaw`**).
+
+### 1) Pick the skills (and read their docs)
+
+1. Open [ClawHub](https://clawhub.ai/) or use search inside OpenClaw (see [ClawHub docs](https://documentation.openclaw.ai/clawhub)).
+2. Choose **one Gmail-oriented skill** and **one Calendar skill** (and optionally **Drive**) that explicitly support **Google OAuth** (not only IMAP).
+3. Open each skill’s **`SKILL.md`** / upstream page and note: **required GCP APIs**, **OAuth client type** (Desktop vs Web), **redirect URIs** (if Web), **env vars or config keys**, and the exact **CLI commands** for install + login.
+
+Exact slugs change over time—always follow the skill you picked, not a fixed slug in this file.
+
+### 2) Enable Google APIs on your GCP project
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), select the **same project** as **`GOOGLE_CLOUD_PROJECT`** on the VM.
+2. Go to **APIs & Services → Library** and enable at least:
+   - **Gmail API** (if the mail skill uses Gmail API),
+   - **Google Calendar API** (for calendar skills),
+   - **Google Drive API** (for Drive skills).
+3. Optional CLI (same project):
+
+   ```bash
+   gcloud services enable gmail.googleapis.com calendar.googleapis.com drive.googleapis.com --project "$GOOGLE_CLOUD_PROJECT"
+   ```
+
+### 3) Configure the OAuth consent screen
+
+1. **APIs & Services → OAuth consent screen**.
+2. **User type:** **External** for a personal `@gmail.com` account (or **Internal** only if this is a Google Workspace org project).
+3. Fill **App name**, **User support email**, **Developer contact**.
+4. **Scopes:** add only what your **skill documentation** lists (principle of least privilege). Many skills document exact scope strings.
+5. If the app stays in **Testing** (typical for a personal project), add your Google account under **Test users** so you can sign in during development.
+
+Publishing the app to **Production** is optional and involves Google verification if you use sensitive/restricted scopes; for a private VM and your own account, **Testing + test users** is often enough.
+
+### 4) Create an OAuth client ID
+
+1. **APIs & Services → Credentials → Create credentials → OAuth client ID**.
+2. **Application type:** start with **Desktop app** unless the skill’s `SKILL.md` requires **Web application** (Web apps need authorized redirect URIs exactly as documented).
+3. Save the **Client ID** and **Client Secret** somewhere safe (password manager). You will paste them where the skill says (env file, `openclaw.json` fragment, or a prompt)—**never** commit them to git.
+
+### 5) Install the skills in the container
+
+From the machine that has `docker-compose.yml`:
+
+```bash
+./scripts/docker-compose.sh run -T --rm openclaw-cli --help
+./scripts/docker-compose.sh run -T --rm openclaw-cli skills search "gmail"
+./scripts/docker-compose.sh run -T --rm openclaw-cli skills search "calendar"
+# Then install using the slug from the listing, e.g.:
+# ./scripts/docker-compose.sh run -T --rm openclaw-cli skills install <slug>
+```
+
+If your image uses different subcommands, check **`docker compose run -T --rm openclaw-cli --help`** and the [OpenClaw CLI](https://docs.openclaw.ai/) / skill page.
+
+### 6) Complete OAuth sign-in once (headless VM)
+
+1. Follow the **skill’s login / auth** instructions (often `auth`, `login`, or a wizard subcommand).
+2. On a **headless** server, the CLI usually prints a **URL** and sometimes a **code**. Open the URL in a **browser on your laptop**, sign in with the **same Google account**, approve scopes, then paste any code or redirect result back into the SSH session as instructed.
+3. OpenClaw stores tokens under the bind-mounted config tree (see [OpenClaw Docker — Storage and persistence](https://docs.openclaw.ai/install/docker)); with this template that is the host’s **`.openclaw-config`** directory.
+
+If the flow expects a local browser on the VM, use an SSH tunnel to the gateway or run the auth step from a machine with a browser, then copy the resulting token files into **`.openclaw-config`** only if the skill documents that path—prefer the official CLI flow.
+
+### 7) Restart the gateway and smoke-test
+
+```bash
+./scripts/docker-compose.sh restart openclaw-gateway
+```
+
+In Telegram (or your channel), ask the agent to do something narrow (e.g. list calendars, list labels, or send a test message to yourself) using the tool names from the skill. If you get **403 / access denied**, re-check **scopes**, **test users**, and **APIs enabled** for the same project as the OAuth client.
+
+### 8) Production hardening (optional)
+
+- Keep **OAuth client secrets** out of git; optionally store them in **Secret Manager** and inject via a small hook or env if the skill supports env-based configuration.
+- Restrict **Test users** to accounts you trust; treat **refresh tokens** like passwords (backed-up disk snapshot of **`.openclaw-config`** is sensitive).
+
+## gog skill (Google Workspace CLI)
+
+The ClawHub **gog** skill gates on **`bins: gog`**: the **`gog`** executable from **[openclaw/gogcli](https://github.com/openclaw/gogcli)** must exist **inside** both the gateway and CLI containers (not only on the host).
+
+1. Install **`gog`** on the VM host (e.g. unpack **`gogcli_*_linux_amd64.tar.gz`** from [Releases](https://github.com/openclaw/gogcli/releases) to **`/usr/local/bin/gog`**).
+2. This repo adds **`docker-compose.gog.yml`**, which bind-mounts **`OPENCLAW_GOG_HOST_PATH`** (default **`/usr/local/bin/gog`**) to **`/usr/local/bin/gog`** in **gateway** and **openclaw-cli** when that host file exists.
+3. Use **`./scripts/docker-compose.sh`** for stack operations (**`make up`**, **`./scripts/deploy.sh`**, **`make logs`**, **`./scripts/rollback.sh`**) so the gog overlay is applied automatically. Raw **`docker compose -f docker-compose.yml …`** skips the mount unless you add **`-f docker-compose.gog.yml`** yourself.
+4. Complete **`gog auth credentials`** / **`gog auth add`** per [gogcli README](https://github.com/openclaw/gogcli/blob/main/README.md); on headless servers use the **file keyring** (`GOG_KEYRING_BACKEND=file` and `GOG_KEYRING_PASSWORD`) and keep tokens on persistent paths under the bind-mounted OpenClaw home.
+
 ## Gmail (optional, advanced)
 
 **Sending mail or reading inbox in chat** usually requires an **OpenClaw skill** (Gmail, SMTP, etc.) from **ClawHub** / upstream docs—not this template alone.
+
+**IMAP/SMTP skills (e.g. `imap-smtp-email`)** often read **`~/.config/imap-smtp-email/.env`** inside the container (`HOME=/home/node`). This repo bind-mounts **`OPENCLAW_IMAP_SMTP_CONFIG_DIR`** (default **`./.openclaw-imap-smtp`** on the host) to that path so credentials survive **`docker compose up`** / image updates. Create **`./.openclaw-imap-smtp/.env`** on the VM with **`chmod 600`**; follow the skill’s `SKILL.md` for exact variable names.
+
+**Gmail with app passwords:** Google rejects normal account passwords for SMTP (`535-5.7.8`). Turn on **2-Step Verification**, create a **Google App Password** (16 characters), and use that as the SMTP/IMAP password in the skill `.env`—not your daily login password. Prefer **OAuth-based Gmail skills** if you want to avoid app passwords.
 
 OpenClaw can also connect Gmail **push** via **Pub/Sub** when explicitly configured. This template keeps hooks **off** by default:
 

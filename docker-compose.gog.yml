@@ -1,0 +1,12 @@
+# Optional overlay: bind-mount host `gog` into gateway + CLI so `skills check` and
+# the agent see the same binary. Loaded only when scripts/docker-compose.sh detects
+# OPENCLAW_GOG_HOST_PATH (default /usr/local/bin/gog) on the host.
+# See docs/GOOGLE_INTEGRATIONS.md (gog / Google Workspace CLI).
+
+services:
+  openclaw-gateway:
+    volumes:
+      - ${OPENCLAW_GOG_HOST_PATH:-/usr/local/bin/gog}:/usr/local/bin/gog:ro
+  openclaw-cli:
+    volumes:
+      - ${OPENCLAW_GOG_HOST_PATH:-/usr/local/bin/gog}:/usr/local/bin/gog:ro

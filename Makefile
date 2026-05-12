@@ -1,9 +1,9 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-COMPOSE ?= docker compose
-COMPOSE_FILES := -f docker-compose.yml
-DEV_FILES := $(COMPOSE_FILES) -f docker-compose.dev.yml
+COMPOSE ?= ./scripts/docker-compose.sh
+COMPOSE_FILES :=
+DEV_FILES := -f docker-compose.dev.yml
 
 .PHONY: setup dev up down restart logs health deploy rollback clean validate backup
 

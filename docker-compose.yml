@@ -33,6 +33,8 @@ services:
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-${HOME:-/tmp}/.openclaw/workspace}:/home/node/.openclaw/workspace
+      # IMAP/SMTP skills (e.g. imap-smtp-email) expect ~/.config/imap-smtp-email/.env — persist it here.
+      - ${OPENCLAW_IMAP_SMTP_CONFIG_DIR:-./.openclaw-imap-smtp}:/home/node/.config/imap-smtp-email
     cap_drop:
       - NET_RAW
       - NET_ADMIN
@@ -90,6 +92,8 @@ services:
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-${HOME:-/tmp}/.openclaw/workspace}:/home/node/.openclaw/workspace
+      # IMAP/SMTP skills (e.g. imap-smtp-email) expect ~/.config/imap-smtp-email/.env — persist it here.
+      - ${OPENCLAW_IMAP_SMTP_CONFIG_DIR:-./.openclaw-imap-smtp}:/home/node/.config/imap-smtp-email
     cap_drop:
       - NET_RAW
       - NET_ADMIN

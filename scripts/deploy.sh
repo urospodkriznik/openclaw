@@ -21,8 +21,8 @@ NEW_HEAD="$(git rev-parse HEAD)"
 ./scripts/fetch-secrets-gsm.sh
 ./scripts/reown-openclaw-mounts.sh --container
 
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
+./scripts/docker-compose.sh pull
+./scripts/docker-compose.sh up -d
 
 if ./scripts/healthcheck.sh; then
   echo "$OLD_HEAD" >"${STATE_DIR}/previous-sha"

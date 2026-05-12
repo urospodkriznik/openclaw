@@ -1,5 +1,5 @@
 # Local development overrides: relax resource caps, keep same services.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Usage: ./scripts/docker-compose.sh -f docker-compose.dev.yml up -d
 
 services:
   openclaw-gateway:

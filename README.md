@@ -49,7 +49,7 @@ flowchart LR
 | LLM | **Gemini** via provider **`google`** + **`GEMINI_API_KEY`** (or Secret Manager → `.env.generated`) |
 | Channel | **Telegram** first (documented `channels add` flow) |
 | Host | Ubuntu 24.04, Docker + Compose v2, optional 4G swap script |
-| CI | ShellCheck, `docker compose config`, required files, lightweight secret-pattern scan |
+| CI | ShellCheck, `./scripts/docker-compose.sh config`, required files, lightweight secret-pattern scan |
 | CD | Push to `main` → SSH → `git pull` → validate → `compose up` → `/healthz` |
 | Safety | Documented autonomy modes mapped to `tools.exec` + `exec-approvals.json` |
 
@@ -76,7 +76,7 @@ cp .env.example .env
 ./scripts/validate-env.sh   # set VALIDATION_LEVEL=minimal until Telegram is set, if needed
 ./scripts/fetch-secrets-gsm.sh   # only needed when USE_GSM_SECRETS=true
 
-docker compose up -d
+./scripts/docker-compose.sh up -d
 ./scripts/healthcheck.sh
 ```
 
@@ -94,7 +94,7 @@ See **[docs/GCP_SETUP.md](docs/GCP_SETUP.md)** (project, APIs, VM, firewall, SSH
 3. Register the channel (from repo root, gateway must be up):
 
    ```bash
-   docker compose run -T --rm openclaw-cli channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN"
+   ./scripts/docker-compose.sh run -T --rm openclaw-cli channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN"
    ```
 
 Official reference: [Telegram channel](https://docs.openclaw.ai/channels/telegram).
@@ -108,7 +108,7 @@ Official reference: [Telegram channel](https://docs.openclaw.ai/channels/telegra
 Verify model ids after deploy:
 
 ```bash
-docker compose run -T --rm openclaw-cli models list --provider google
+./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider google
 ```
 
 (Optional) **Vertex AI** (`google-vertex` + ADC) is documented in [docs/GOOGLE_INTEGRATIONS.md](docs/GOOGLE_INTEGRATIONS.md) if your OpenClaw image includes that provider.
@@ -204,7 +204,7 @@ OpenClaw reads **`openclaw.json`** (JSON5-capable) under `OPENCLAW_CONFIG_DIR`. 
 | `make deploy` / `rollback` | Scripted deploy / git rollback |
 | `make validate` | `scripts/validate-env.sh` |
 | `make backup` | Tarball config dir |
-| `make clean` | `docker compose down -v` |
+| `make clean` | `./scripts/docker-compose.sh down -v` |
 
 ## License
 

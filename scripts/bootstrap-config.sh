@@ -161,5 +161,5 @@ echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MO
 if truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}" && ! truthy "${FULL_AUTONOMY:-false}"; then
   echo "Headless exec: tools.exec + exec-approvals use security=full ask=off (no Control UI). Gmail/Calendar/Drive need skills + OAuth per docs/GOOGLE_INTEGRATIONS.md."
 fi
-echo "Next: add Telegram — docker compose run -T --rm openclaw-cli channels add --channel telegram --token \"\$TELEGRAM_BOT_TOKEN\""
-echo "Gemini: set GEMINI_API_KEY in .env (or GSM_GEMINI_API_KEY_SECRET + fetch-secrets-gsm.sh). Verify: docker compose run -T --rm openclaw-cli models list --provider google"
+echo "Next: add Telegram — ./scripts/docker-compose.sh run -T --rm openclaw-cli channels add --channel telegram --token \"\$TELEGRAM_BOT_TOKEN\""
+echo "Gemini: set GEMINI_API_KEY in .env (or GSM_GEMINI_API_KEY_SECRET + fetch-secrets-gsm.sh). Verify: ./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider google"

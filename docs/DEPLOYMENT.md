@@ -19,12 +19,12 @@
    - Writes `$OPENCLAW_CONFIG_DIR/openclaw.json` and `exec-approvals.json` from autonomy flags (re-runs overwrite these files—keep advanced edits elsewhere or adjust the script).
 3. `./scripts/validate-env.sh`
 4. `./scripts/fetch-secrets-gsm.sh` (required for `USE_GSM_SECRETS=true`; writes `.env.generated` with Telegram and optional `OPENAI_API_KEY` / `GEMINI_API_KEY` when `GSM_OPENAI_API_KEY_SECRET` / `GSM_GEMINI_API_KEY_SECRET` are set)
-5. `docker compose up -d`
+5. `./scripts/docker-compose.sh up -d`
 6. `./scripts/healthcheck.sh`
 7. One-time Telegram registration:
 
    ```bash
-   docker compose run -T --rm openclaw-cli channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN"
+   ./scripts/docker-compose.sh run -T --rm openclaw-cli channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN"
    ```
 
 ## Image pinning
@@ -44,14 +44,14 @@ OpenClaw’s Docker flow often uses `./scripts/docker/setup.sh` **inside the ups
 If the gateway rejects the model ref, run:
 
 ```bash
-docker compose run -T --rm openclaw-cli models list --provider google
+./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider google
 ```
 
 and adjust **`GEMINI_MODEL`** / `openclaw.json`. For **Vertex** (`google-vertex`) instead, set **`primary`** manually and enable **Vertex AI API** + ADC; see [docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md).
 
 ## Compose overrides
 
-- Development / more RAM: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d`
+- Development / more RAM: `./scripts/docker-compose.sh -f docker-compose.dev.yml up -d`
 
 ## Resource hints (e2-micro)
 

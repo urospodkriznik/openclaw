@@ -19,8 +19,8 @@ echo "rollback: resetting to $TARGET"
 git fetch --all --quiet || true
 git checkout --force "$TARGET"
 
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
+./scripts/docker-compose.sh pull
+./scripts/docker-compose.sh up -d
 
 ./scripts/healthcheck.sh || {
   echo "rollback: healthcheck still failing — inspect logs: make logs" >&2

@@ -17,6 +17,7 @@ gcp-sa.json
 # OpenClaw runtime on developer machines (if copied beside repo)
 .openclaw/
 .openclaw-config/
+.openclaw-imap-smtp/
 
 # OS / editor
 .DS_Store

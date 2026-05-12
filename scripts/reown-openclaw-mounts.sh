@@ -16,6 +16,7 @@ fi
 
 CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-./.openclaw-config}"
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-./workspace}"
+IMAP_SMTP_DIR="${OPENCLAW_IMAP_SMTP_CONFIG_DIR:-./.openclaw-imap-smtp}"
 
 usage() {
   echo "usage: $0 --host | --container" >&2
@@ -42,21 +43,21 @@ need_sudo_chown() {
   return 1
 }
 
-mkdir -p "$CONFIG_DIR" "$WORKSPACE_DIR"
+mkdir -p "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR"
 
 if [[ "$1" == "--host" ]]; then
-  if [[ -w "$CONFIG_DIR" ]] && [[ -w "$WORKSPACE_DIR" ]]; then
-    echo "reown-openclaw-mounts: $CONFIG_DIR and $WORKSPACE_DIR already writable by $(id -un)"
+  if [[ -w "$CONFIG_DIR" ]] && [[ -w "$WORKSPACE_DIR" ]] && [[ -w "$IMAP_SMTP_DIR" ]]; then
+    echo "reown-openclaw-mounts: $CONFIG_DIR, $WORKSPACE_DIR, $IMAP_SMTP_DIR already writable by $(id -un)"
     exit 0
   fi
   if ! need_sudo_chown; then
     echo "reown-openclaw-mounts: not writable by $(id -un); passwordless sudo required for this exact binary:" >&2
     echo "  $(id -un) ALL=(ALL) NOPASSWD: $CHOWN_BIN" >&2
-    echo "Then run: sudo \"$CHOWN_BIN\" -R \"$(id -un):$(id -gn)\" \"$ROOT_DIR/$CONFIG_DIR\" \"$ROOT_DIR/$WORKSPACE_DIR\"" >&2
+    echo "Then run: sudo \"$CHOWN_BIN\" -R \"$(id -un):$(id -gn)\" \"$ROOT_DIR/$CONFIG_DIR\" \"$ROOT_DIR/$WORKSPACE_DIR\" \"$ROOT_DIR/$IMAP_SMTP_DIR\"" >&2
     exit 1
   fi
-  echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR -> $(id -un):$(id -gn) (for bootstrap)"
-  sudo -n "$CHOWN_BIN" -R "$(id -un):$(id -gn)" "$CONFIG_DIR" "$WORKSPACE_DIR"
+  echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR $IMAP_SMTP_DIR -> $(id -un):$(id -gn) (for bootstrap)"
+  sudo -n "$CHOWN_BIN" -R "$(id -un):$(id -gn)" "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR"
   exit 0
 fi
 
@@ -70,5 +71,5 @@ if ! need_sudo_chown; then
   echo "Configure NOPASSWD chown for this user, or see docs/TROUBLESHOOTING.md (EACCES)." >&2
   exit 1
 fi
-echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR -> 1000:1000 (for container)"
-sudo -n "$CHOWN_BIN" -R 1000:1000 "$CONFIG_DIR" "$WORKSPACE_DIR"
+echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR $IMAP_SMTP_DIR -> 1000:1000 (for container)"
+sudo -n "$CHOWN_BIN" -R 1000:1000 "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR"

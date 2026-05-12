@@ -68,7 +68,7 @@ To use another directory (e.g. `/opt/openclaw`), log in once and `export DEPLOY_
 4. `./scripts/bootstrap-config.sh`, `./scripts/align-gmail-watcher-env.sh` (if `ENABLE_GMAIL_HOOKS=true`, forces `OPENCLAW_SKIP_GMAIL_WATCHER=0`), then `./scripts/validate-env.sh`.
 5. `./scripts/fetch-secrets-gsm.sh` to generate `.env.generated` from Secret Manager.
 6. **`./scripts/reown-openclaw-mounts.sh --container`** (restore **UID 1000** ownership for the gateway image).
-7. `docker compose pull && up -d`.
+7. `./scripts/docker-compose.sh pull && ./scripts/docker-compose.sh up -d`.
 8. `./scripts/healthcheck.sh`; on failure prints recent logs.
 
 ## Branch protection
