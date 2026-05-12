@@ -6,11 +6,26 @@
     mode: "local",
     bind: "lan", // Docker publishes 18789 on the host; see docs/SECURITY.md before exposing WAN
   },
+  // Parse /command from message text (needed for reliable Telegram handling); see docs/TROUBLESHOOTING.md
+  commands: {
+    text: true,
+    native: "auto",
+    nativeSkills: "auto",
+  },
+  // Single-user Telegram DMs: one shared session; see https://docs.openclaw.ai/concepts/session
+  session: {
+    dmScope: "main",
+  },
   agents: {
     defaults: {
       model: {
         // Gemini (google): verify model id with `docker compose run -T --rm openclaw-cli models list --provider google`
         primary: "google/gemini-3-flash-preview",
+      },
+      // Only inject startup prelude on explicit /reset-style turns, not on every "new" classification
+      startupContext: {
+        enabled: true,
+        applyOn: ["reset"],
       },
     },
   },

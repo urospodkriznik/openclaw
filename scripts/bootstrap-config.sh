@@ -116,14 +116,25 @@ elif truthy "${DEMO_MODE:-false}"; then
   TOOLS_ASK="always"
 fi
 
-# Minimal JSON (OpenClaw accepts JSON5; we emit strict JSON for tooling)
+# Minimal JSON (OpenClaw accepts JSON5; we emit strict JSON for tooling).
+# - commands.text: Telegram often omits bot_command entities; text parsing fixes /new, /reset, etc.
+# - session.dmScope main: single-user DMs share one session (continuity across messages).
+# - startupContext.applyOn: only "reset" avoids re-injecting the first-turn startup prelude on every turn
+#   when the runtime treats a turn as "new" (fixes repeated "fresh workspace" replies in Telegram).
 jq -n \
   --arg primary "$PRIMARY_MODEL" \
   --arg sec "$TOOLS_SECURITY" \
   --arg ask "$TOOLS_ASK" \
   '{
     gateway: { mode: "local", bind: "lan" },
-    agents: { defaults: { model: { primary: $primary } } },
+    commands: { text: true, native: "auto", nativeSkills: "auto" },
+    session: { dmScope: "main" },
+    agents: {
+      defaults: {
+        model: { primary: $primary },
+        startupContext: { enabled: true, applyOn: ["reset"] }
+      }
+    },
     tools: { exec: { host: "gateway", security: $sec, ask: $ask } }
   }' >"${OPENCLAW_JSON}.tmp"
 mv "${OPENCLAW_JSON}.tmp" "$OPENCLAW_JSON"

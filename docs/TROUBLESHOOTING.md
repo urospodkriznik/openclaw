@@ -50,6 +50,20 @@ Right after **`docker compose up -d`**, the host port can be open while the Node
 - Verify **`GOOGLE_CLOUD_LOCATION`** supports the chosen model.
 - Run `gcloud auth application-default print-access-token` **on the host** only for debugging (do not paste tokens into chats).
 
+## Telegram repeats the same intro / ignores prior messages
+
+If every DM looks like a **first boot** (“fresh workspace”, who am I, etc.), the gateway may be **re-classifying turns as “new”** and re-applying the **startup prelude** each time.
+
+This template’s **`./scripts/bootstrap-config.sh`** writes:
+
+- **`session.dmScope: "main"`** — one shared DM session for the default agent (good for a single-owner bot).
+- **`agents.defaults.startupContext.applyOn: ["reset"]`** — prelude runs on **explicit reset** paths, not on every `new` signal.
+- **`commands.text: true`** — Telegram slash commands are parsed from message text when `bot_command` entities are missing ([upstream discussion](https://github.com/openclaw/openclaw/issues/27012)).
+
+Re-run **`./scripts/bootstrap-config.sh`** on the VM (or redeploy), then **`docker compose restart openclaw-gateway`**.
+
+If it persists, check gateway logs for **session key** stability and inspect sessions per [Session management](https://docs.openclaw.ai/concepts/session) (e.g. **`docker compose exec openclaw-cli sh -lc 'node dist/index.js sessions --help'`** on your OpenClaw version).
+
 ## Telegram bot silent
 
 - Re-run channel registration with a fresh token if rotated.
