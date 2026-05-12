@@ -35,11 +35,14 @@ The container runs as **UID 1000**. Fix host ownership (same as **`reown-opencla
 sudo chown -R 1000:1000 .openclaw-config workspace
 ```
 
-## Healthcheck fails immediately
+## Healthcheck fails (`curl: (52) Empty reply` or immediate failure)
+
+Right after **`docker compose up -d`**, the host port can be open while the Node process is still booting; **`scripts/healthcheck.sh`** retries **`/healthz`** for up to **`HEALTHCHECK_MAX_WAIT_SECONDS`** (default **180**) every **`HEALTHCHECK_INTERVAL_SECONDS`** (default **3**).
 
 1. `docker compose logs --tail=200 openclaw-gateway`
-2. Confirm the gateway is listening: `ss -tlnp | grep 18789` on the host.
-3. Increase `start_period` in `docker-compose.yml` temporarily if the image is slow to boot on micro instances.
+2. On the VM: `ss -tlnp | grep 18789` (or your **`OPENCLAW_GATEWAY_PORT`**).
+3. On very small instances, set in **`.env`**: `HEALTHCHECK_MAX_WAIT_SECONDS=300` (or higher).
+4. Increase **`start_period`** in **`docker-compose.yml`** if Docker’s own health state flaps on cold start.
 
 ## Vertex errors (`permission denied`, `not found`, `API key`)
 
