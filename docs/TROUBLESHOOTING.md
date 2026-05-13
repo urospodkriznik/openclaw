@@ -1,5 +1,20 @@
 # Troubleshooting
 
+## `apt-get update` fails on `dl.google.com` / Chrome (`File has unexpected size`)
+
+Google’s **Chrome** APT repo sometimes returns a **Packages** index that does not match the **Release** file while mirrors sync (`1213 != 1212`, “Mirror sync in progress”). That is **upstream/transient**, not an OpenClaw bug.
+
+**Quick fixes**
+
+1. **Retry** after a few minutes: `sudo apt-get update`
+2. **CI / self-hosted runners:** retry the update step (this repo’s **`.github/workflows/ci.yml`** retries **`apt-get update`** up to **3** times).
+3. **You do not need Chrome on that machine:** remove the list file and update again:
+
+   ```bash
+   sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome*.list
+   sudo apt-get update
+   ```
+
 ## `fetch-secrets-gsm.sh` fails
 
 When `USE_GSM_SECRETS=true`, ensure VM IAM and secret names are correct:
