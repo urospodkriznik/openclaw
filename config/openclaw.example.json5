@@ -16,17 +16,10 @@
   session: {
     dmScope: "main",
   },
-  // Longer provider guard helps Telegram + gog tool runs on small VMs (override via GEMINI_PROVIDER_TIMEOUT_SECONDS in .env)
-  models: {
-    providers: {
-      google: { timeoutSeconds: 180 },
-    },
-  },
+  // Optional timeouts / idle streaming: do NOT paste a bare `models.providers.google` without
+  // verifying merge semantics for your OpenClaw version — see config/openclaw-timeouts.example.json5
   agents: {
     defaults: {
-      // Telegram / gog: avoid "model idle timeout" — see OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS in .env + bootstrap-config.sh
-      timeoutSeconds: 300,
-      llm: { idleTimeoutSeconds: 300 },
       model: {
         // Gemini (google): verify model id with `docker compose run -T --rm openclaw-cli models list --provider google`
         primary: "google/gemini-3-flash-preview",

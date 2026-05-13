@@ -93,17 +93,47 @@ Details, API enablement, and OAuth vs Secret Manager: **[docs/GOOGLE_INTEGRATION
 - Confirm outbound HTTPS is allowed from the VM (NAT/firewall).
 - If using GSM mode, regenerate runtime env: `./scripts/fetch-secrets-gsm.sh`.
 
+## No Telegram replies after `restart` / `--force-recreate`
+
+1. **Containers actually up:**  
+   `cd ~/openclaw && ./scripts/docker-compose.sh ps`  
+   Both should be **running** (not **Restarting**).
+
+2. **Gateway HTTP:**  
+   `curl --noproxy '*' --http1.1 -H 'Expect:' -fsS http://127.0.0.1:18789/healthz`  
+   (Use **`OPENCLAW_GATEWAY_PORT`** from **`.env`** if not **18789**.) Expect HTTP **200**. If this fails, the bot cannot run.
+
+3. **Logs (first errors):**  
+   `./scripts/docker-compose.sh logs --tail=200 openclaw-gateway`  
+   Look for crash on startup, **invalid `openclaw.json`**, OOM (**137**), or Telegram token errors.
+
+4. **`docker restart` / namespace errors:** If **`restart`** failed with **runc** / **`ns/net`** errors, prefer **`./scripts/docker-compose.sh up -d --force-recreate`** or stop **CLI** first, then **gateway**, then start **gateway** then **CLI** (CLI uses **`network_mode: service:openclaw-gateway`**).
+
+5. **Stale config:** If **`./healthz`** works but Telegram is dead, confirm **`TELEGRAM_BOT_TOKEN`** is still present (host **`.env`** + **`.env.generated`** when **`USE_GSM_SECRETS=true`**) and run **`./scripts/fetch-secrets-gsm.sh`** then **`up -d`** again.
+
+6. **Config schema:** Very old gateway images might reject unknown keys. If logs show a parse error on **`agents.defaults.llm`**, remove that block from **`openclaw.json`** or upgrade **`OPENCLAW_IMAGE`**, then **`restart openclaw-gateway`**.
+
+## Gateway stuck `Restarting (1)` (crash loop)
+
+Often **`openclaw.json`** is invalid for this image or **replaces** built-in provider config incorrectly.
+
+1. **Logs:** `./scripts/docker-compose.sh logs --tail=120 openclaw-gateway` — look for Zod/config validation errors at startup.
+
+2. **Partial `models.providers.google`:** A minimal object like `{ "timeoutSeconds": 180 }` can **wipe** the bundled Google provider definition on some versions → immediate exit. **Remove** the entire **`models`** key from **`openclaw.json`** unless you merged a **full** provider per upstream docs, then re-run **`./scripts/reown-openclaw-mounts.sh --container`** and **`./scripts/docker-compose.sh up -d`**.
+
+3. **Recover minimal config:** From repo root: **`./scripts/reown-openclaw-mounts.sh --host`**, **`./scripts/bootstrap-config.sh`**, **`./scripts/reown-openclaw-mounts.sh --container`**, **`./scripts/docker-compose.sh up -d`**.
+
 ## “Model idle timeout” / slow replies on Telegram
 
-Two different knobs:
+OpenClaw uses separate limits (see [model providers](https://docs.openclaw.ai/concepts/model-providers)):
 
-- **`agents.defaults.llm.idleTimeoutSeconds`** — max gap **without streamed tokens** (tool rounds, cold APIs). This is what triggers the **“model idle timeout”** message. Bootstrap sets it from **`OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS`** (default **300**). Set **`0`** in **`openclaw.json`** only if upstream documents disabling idle checks.
-- **`agents.defaults.timeoutSeconds`** — max time for a **whole agent turn**. Bootstrap: **`OPENCLAW_AGENT_TIMEOUT_SECONDS`** (default **300**).
-- **`models.providers.google.timeoutSeconds`** — provider **HTTP** guard only. Bootstrap: **`GEMINI_PROVIDER_TIMEOUT_SECONDS`** (default **180**).
+- **`agents.defaults.llm.idleTimeoutSeconds`** — max gap **without streamed tokens** (often triggers the **“model idle timeout”** Telegram message).
+- **`agents.defaults.timeoutSeconds`** — max time for a **whole agent turn**.
+- **`models.providers.<id>.timeoutSeconds`** — provider **HTTP** guard (not the same as idle streaming).
 
-After changing **`.env`**, run **`./scripts/reown-openclaw-mounts.sh --host`**, **`./scripts/bootstrap-config.sh`**, **`./scripts/reown-openclaw-mounts.sh --container`**, **`./scripts/docker-compose.sh up -d`**.
+**This repo’s `bootstrap-config.sh` does not write these keys** (doing so with a bare **`google`** provider object has crashed gateways). Merge optional fragments from **`config/openclaw-timeouts.example.json5`** only after you confirm your **`OPENCLAW_IMAGE`** supports them, then **`restart openclaw-gateway`**.
 
-Confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs for API errors).
+Also confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs for API errors).
 
 ## GitHub Actions deploy fails SSH
 
@@ -111,7 +141,7 @@ Confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs for AP
 
 The runner’s private key (`GCP_VM_SSH_KEY`) must match a **public** key line in **`~/.ssh/authorized_keys`** for **`GCP_VM_USER`** on the VM (same user the workflow connects as).
 
-1. **Align user and key:** On the VM, pick the account you use for deploy (e.g. `ubuntu` or `your_uername`). Append the **deploy public** key to that user’s `authorized_keys`:
+1. **Align user and key:** On the VM, pick the account you use for deploy (e.g. `ubuntu` or `your_username`). Append the **deploy public** key to that user’s `authorized_keys`:
 
    ```bash
    mkdir -p ~/.ssh && chmod 700 ~/.ssh

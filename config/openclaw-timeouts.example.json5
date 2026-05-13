@@ -1,0 +1,25 @@
+// Optional fragments to MERGE into $OPENCLAW_CONFIG_DIR/openclaw.json (do not replace the whole file).
+// ./scripts/bootstrap-config.sh does NOT emit these: a bare `models.providers.google` object can
+// REPLACE the bundled Google provider in some OpenClaw versions and crash the gateway (restart loop).
+//
+// After verifying your image supports these keys (see https://docs.openclaw.ai/concepts/model-providers
+// and gateway configuration docs), merge manually or with jq, then restart the gateway.
+//
+// Example knobs:
+// - models.providers.<id>.timeoutSeconds — provider HTTP/stream guard
+// - agents.defaults.llm.idleTimeoutSeconds — "model idle timeout" (gap without streamed tokens)
+// - agents.defaults.timeoutSeconds — whole agent turn ceiling
+
+{
+  models: {
+    providers: {
+      google: { timeoutSeconds: 180 },
+    },
+  },
+  agents: {
+    defaults: {
+      timeoutSeconds: 300,
+      llm: { idleTimeoutSeconds: 300 },
+    },
+  },
+}

@@ -1,7 +1,8 @@
 // Provider hints (JSON5). OpenClaw discovers many providers automatically when auth env vars exist.
 // Default template: Gemini developer API (provider google) — set GEMINI_API_KEY (or GSM + fetch-secrets-gsm.sh).
-// Slow tools / Telegram: raise timeout — GEMINI_PROVIDER_TIMEOUT_SECONDS in .env or merge into openclaw.json:
-//   models: { providers: { google: { timeoutSeconds: 180 } } }
+// Do NOT add a bare `models.providers.google: { timeoutSeconds: … }` unless you know your OpenClaw version
+// deep-merges provider config — a partial object can replace the bundled provider and crash the gateway.
+// See config/openclaw-timeouts.example.json5 for optional timeout / idle fragments to merge carefully.
 // Optional Vertex (google-vertex): ADC from VM attached service account; set GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION.
 // See: https://docs.openclaw.ai/concepts/model-providers
 {

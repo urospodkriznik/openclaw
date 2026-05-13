@@ -38,6 +38,7 @@ jobs:
             scripts/docker-compose.sh \
             docker-compose.gog.yml \
             config/openclaw.example.json5 \
+            config/openclaw-timeouts.example.json5 \
             config/safety.example.json5 \
             config/providers.example.json5; do
             test -f "$f" || { echo "missing $f"; exit 1; }
