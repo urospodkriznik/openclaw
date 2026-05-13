@@ -24,6 +24,9 @@
   },
   agents: {
     defaults: {
+      // Telegram / gog: avoid "model idle timeout" — see OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS in .env + bootstrap-config.sh
+      timeoutSeconds: 300,
+      llm: { idleTimeoutSeconds: 300 },
       model: {
         // Gemini (google): verify model id with `docker compose run -T --rm openclaw-cli models list --provider google`
         primary: "google/gemini-3-flash-preview",

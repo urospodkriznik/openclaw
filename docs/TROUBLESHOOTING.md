@@ -95,10 +95,15 @@ Details, API enablement, and OAuth vs Secret Manager: **[docs/GOOGLE_INTEGRATION
 
 ## “Model idle timeout” / slow replies on Telegram
 
-OpenClaw may abort before the LLM finishes when provider HTTP/stream guards are tight or tools are slow.
+Two different knobs:
 
-- Set **`GEMINI_PROVIDER_TIMEOUT_SECONDS`** (default **180**) in **`.env`** and re-run **`./scripts/bootstrap-config.sh`** so **`openclaw.json`** gets **`models.providers.google.timeoutSeconds`**. Increase further (e.g. **300**) if using **`gog`** or other exec-heavy skills on a small VM.
-- Confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs for API errors).
+- **`agents.defaults.llm.idleTimeoutSeconds`** — max gap **without streamed tokens** (tool rounds, cold APIs). This is what triggers the **“model idle timeout”** message. Bootstrap sets it from **`OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS`** (default **300**). Set **`0`** in **`openclaw.json`** only if upstream documents disabling idle checks.
+- **`agents.defaults.timeoutSeconds`** — max time for a **whole agent turn**. Bootstrap: **`OPENCLAW_AGENT_TIMEOUT_SECONDS`** (default **300**).
+- **`models.providers.google.timeoutSeconds`** — provider **HTTP** guard only. Bootstrap: **`GEMINI_PROVIDER_TIMEOUT_SECONDS`** (default **180**).
+
+After changing **`.env`**, run **`./scripts/reown-openclaw-mounts.sh --host`**, **`./scripts/bootstrap-config.sh`**, **`./scripts/reown-openclaw-mounts.sh --container`**, **`./scripts/docker-compose.sh up -d`**.
+
+Confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs for API errors).
 
 ## GitHub Actions deploy fails SSH
 
@@ -106,7 +111,7 @@ OpenClaw may abort before the LLM finishes when provider HTTP/stream guards are 
 
 The runner’s private key (`GCP_VM_SSH_KEY`) must match a **public** key line in **`~/.ssh/authorized_keys`** for **`GCP_VM_USER`** on the VM (same user the workflow connects as).
 
-1. **Align user and key:** On the VM, pick the account you use for deploy (e.g. `ubuntu` or `urospodkriznik`). Append the **deploy public** key to that user’s `authorized_keys`:
+1. **Align user and key:** On the VM, pick the account you use for deploy (e.g. `ubuntu` or `your_uername`). Append the **deploy public** key to that user’s `authorized_keys`:
 
    ```bash
    mkdir -p ~/.ssh && chmod 700 ~/.ssh

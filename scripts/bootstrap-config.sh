@@ -45,6 +45,20 @@ if ! [[ "$GEMINI_PROVIDER_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
   GEMINI_PROVIDER_TIMEOUT_SECONDS=180
 fi
 
+# Streaming "model idle timeout" (gap between tokens / tool rounds), not the same as models.providers.*.timeoutSeconds
+OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS="${OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS:-300}"
+if ! [[ "$OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "bootstrap-config: warning: invalid OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS=$OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS; using 300" >&2
+  OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS=300
+fi
+
+# Full agent turn ceiling (defaults.timeoutSeconds in upstream)
+OPENCLAW_AGENT_TIMEOUT_SECONDS="${OPENCLAW_AGENT_TIMEOUT_SECONDS:-300}"
+if ! [[ "$OPENCLAW_AGENT_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "bootstrap-config: warning: invalid OPENCLAW_AGENT_TIMEOUT_SECONDS=$OPENCLAW_AGENT_TIMEOUT_SECONDS; using 300" >&2
+  OPENCLAW_AGENT_TIMEOUT_SECONDS=300
+fi
+
 # Host .env token for compose interpolation
 if [[ -f "$ENV_FILE" ]] && grep -qE '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE"; then
   line="$(grep -E '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE" | tail -n1)"
@@ -152,6 +166,8 @@ jq -n \
   --arg sec "$TOOLS_SECURITY" \
   --arg ask "$TOOLS_ASK" \
   --argjson geminiTimeout "$GEMINI_PROVIDER_TIMEOUT_SECONDS" \
+  --argjson llmIdle "$OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS" \
+  --argjson agentTimeout "$OPENCLAW_AGENT_TIMEOUT_SECONDS" \
   '{
     gateway: { mode: "local", bind: "lan" },
     commands: { text: true, native: "auto", nativeSkills: "auto" },
@@ -159,6 +175,8 @@ jq -n \
     models: { providers: { google: { timeoutSeconds: $geminiTimeout } } },
     agents: {
       defaults: {
+        timeoutSeconds: $agentTimeout,
+        llm: { idleTimeoutSeconds: $llmIdle },
         model: { primary: $primary },
         startupContext: { enabled: true, applyOn: ["reset"] }
       }
@@ -167,7 +185,7 @@ jq -n \
   }' >"${OPENCLAW_JSON}.tmp"
 mv "${OPENCLAW_JSON}.tmp" "$OPENCLAW_JSON"
 
-echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL)"
+echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL, google.timeoutSeconds=$GEMINI_PROVIDER_TIMEOUT_SECONDS, llm.idleTimeoutSeconds=$OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS, agent.timeoutSeconds=$OPENCLAW_AGENT_TIMEOUT_SECONDS)"
 if truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}" && ! truthy "${FULL_AUTONOMY:-false}"; then
   echo "Headless exec: tools.exec + exec-approvals use security=full ask=off (no Control UI). Gmail/Calendar/Drive need skills + OAuth per docs/GOOGLE_INTEGRATIONS.md."
 fi
