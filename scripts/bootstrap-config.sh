@@ -19,7 +19,8 @@ mkdir -p "$CONFIG_DIR"
 
 if [[ ! -w "$CONFIG_DIR" ]]; then
   echo "bootstrap-config: error: $CONFIG_DIR is not writable by $(id -un) (common after Docker created it as UID 1000)." >&2
-  echo "From repo root run: ./scripts/reown-openclaw-mounts.sh --host  (needs passwordless sudo; see docs/TROUBLESHOOTING.md)" >&2
+  echo "Fix (same order as deploy): ./scripts/reown-openclaw-mounts.sh --host" >&2
+  echo "Then: ./scripts/bootstrap-config.sh   (needs passwordless sudo for chown; see docs/TROUBLESHOOTING.md)" >&2
   exit 1
 fi
 
