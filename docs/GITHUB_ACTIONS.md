@@ -50,6 +50,10 @@ Create the following in **GitHub → Settings → Secrets and variables → Acti
 | `GCP_VM_SSH_KEY` | **Private** half of an SSH key pair |
 | `GCP_VM_PORT` | Optional; if unset, workflow uses **22** |
 
+**Deploy key must match the VM user:** the **public** half of `GCP_VM_SSH_KEY` must appear in **`~GCP_VM_USER/.ssh/authorized_keys`**. The VM login that works with **`google_compute_engine`** or another personal key is unrelated unless you add that key’s **`.pub`** to the deploy user—or store the **private** half of your chosen deploy pair in `GCP_VM_SSH_KEY`.
+
+**Do not commit `.env`:** it is gitignored for a reason (tokens, `GOG_KEYRING_PASSWORD`, etc.). If it was committed, rotate secrets and remove the file from git history; see [TROUBLESHOOTING.md](TROUBLESHOOTING.md) deploy SSH section.
+
 ## Deploy path
 
 The remote script defaults to:

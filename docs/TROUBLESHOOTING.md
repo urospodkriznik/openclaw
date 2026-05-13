@@ -95,8 +95,37 @@ Details, API enablement, and OAuth vs Secret Manager: **[docs/GOOGLE_INTEGRATION
 
 ## GitHub Actions deploy fails SSH
 
-- Verify `GCP_VM_HOST`, user, key, and port (**22** if secret omitted).
-- Ensure the deploy user can run **passwordless** `docker` (group membership).
+### `ssh: unable to authenticate ... attempted methods [none publickey]`
+
+The runner’s private key (`GCP_VM_SSH_KEY`) must match a **public** key line in **`~/.ssh/authorized_keys`** for **`GCP_VM_USER`** on the VM (same user the workflow connects as).
+
+1. **Align user and key:** On the VM, pick the account you use for deploy (e.g. `ubuntu` or `urospodkriznik`). Append the **deploy public** key to that user’s `authorized_keys`:
+
+   ```bash
+   mkdir -p ~/.ssh && chmod 700 ~/.ssh
+   cat >> ~/.ssh/authorized_keys <<'EOF'
+   # paste single line from deploy key .pub
+   EOF
+   chmod 600 ~/.ssh/authorized_keys
+   ```
+
+2. **GitHub secret contents:** `GCP_VM_SSH_KEY` must be the **full private** key (including `-----BEGIN … PRIVATE KEY-----` / `END` lines), with **newlines preserved**. If the key has a **passphrase**, add **`passphrase:`** to the workflow’s `appleboy/ssh-action` inputs (this repo does not set it by default — use a **passphraseless** deploy key).
+
+3. **Match host:** `GCP_VM_HOST` must be the VM’s **external IP** or a DNS name that resolves to it (not an internal-only name GitHub’s runners cannot resolve).
+
+4. **Sanity check from your laptop** (substitute your deploy key):
+
+   ```bash
+   ssh -i ~/.ssh/your_deploy_private_key -o IdentitiesOnly=yes YOUR_USER@YOUR_VM_IP true
+   ```
+
+If that fails, CI will fail for the same reason.
+
+Also verify **`GCP_VM_PORT`** if SSH is not on **22**.
+
+### Other checks
+
+- Ensure the deploy user can run **passwordless** `docker` (group membership) and **`sudo`** for **`chown`** per [docs/GITHUB_ACTIONS.md](GITHUB_ACTIONS.md).
 
 ## `validate-env` complains about Telegram
 
