@@ -30,6 +30,10 @@ services:
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-}
       OPENCLAW_SKIP_GMAIL_WATCHER: ${OPENCLAW_SKIP_GMAIL_WATCHER:-1}
       TZ: ${OPENCLAW_TZ:-UTC}
+      # gogcli (Google Workspace CLI) when bind-mounted — see docker-compose.gog.yml + docs/GOOGLE_INTEGRATIONS.md
+      GOG_KEYRING_BACKEND: ${GOG_KEYRING_BACKEND:-}
+      GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD:-}
+      GOG_ACCOUNT: ${GOG_ACCOUNT:-}
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-${HOME:-/tmp}/.openclaw/workspace}:/home/node/.openclaw/workspace
@@ -89,6 +93,9 @@ services:
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-}
       BROWSER: echo
       TZ: ${OPENCLAW_TZ:-UTC}
+      GOG_KEYRING_BACKEND: ${GOG_KEYRING_BACKEND:-}
+      GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD:-}
+      GOG_ACCOUNT: ${GOG_ACCOUNT:-}
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-${HOME:-/tmp}/.openclaw/workspace}:/home/node/.openclaw/workspace

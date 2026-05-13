@@ -18,6 +18,7 @@ gcp-sa.json
 .openclaw/
 .openclaw-config/
 .openclaw-imap-smtp/
+.openclaw-gog-config/
 
 # OS / editor
 .DS_Store
