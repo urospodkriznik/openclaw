@@ -45,7 +45,7 @@ Exact slugs change over time—always follow the skill you picked, not a fixed s
 2. Go to **APIs & Services → Library** and enable at least:
    - **Gmail API** (if the mail skill uses Gmail API),
    - **Google Calendar API** (for calendar skills),
-   - **Google Drive API** (for Drive skills).
+   - **Google Drive API** (for Drive skills).F
 3. Optional CLI (same project):
 
    ```bash
@@ -107,15 +107,33 @@ In Telegram (or your channel), ask the agent to do something narrow (e.g. list c
 
 The ClawHub **gog** skill gates on **`bins: gog`**: the **`gog`** executable from **[openclaw/gogcli](https://github.com/openclaw/gogcli)** must exist **inside** both the gateway and CLI containers (not only on the host).
 
+**If the agent still talks about “upload credentials” or OAuth in Telegram:** that usually means the **skill is not installed** or **`gog` / keyring is not visible in the container**—not that you lack a client JSON on disk. The model cannot see your host `~/.config/gogcli` unless it is bind-mounted and **`GOG_*`** is set in **`.env`**, and it has no **`gog`** tools until **`skills install`** for **gog** succeeds.
+
+**Quick verify (on the VM, from `~/openclaw`):** the CLI image entrypoint is **`node dist/index.js`** — raw **`sh`** is parsed as an OpenClaw command and fails. Override the entrypoint to run **`gog`**:
+
+```bash
+# After sync (see numbered steps below), container gog should pass doctor:
+./scripts/sync-gog-cli-config.sh
+./scripts/docker-compose.sh run -T --rm --entrypoint /bin/sh openclaw-cli -c 'command -v gog && gog auth doctor --check'
+./scripts/docker-compose.sh run -T --rm openclaw-cli skills search gog
+# Skill already present? update instead of plain install:
+# ./scripts/docker-compose.sh run -T --rm openclaw-cli skills install gog --help
+# ./scripts/docker-compose.sh run -T --rm openclaw-cli skills install gog --force   # if supported
+./scripts/docker-compose.sh restart openclaw-gateway
+```
+
 1. Install **`gog`** on the VM host (e.g. unpack **`gogcli_*_linux_amd64.tar.gz`** from [Releases](https://github.com/openclaw/gogcli/releases) to **`/usr/local/bin/gog`**).
-2. This repo adds **`docker-compose.gog.yml`**, which bind-mounts **`OPENCLAW_GOG_HOST_PATH`** (default **`/usr/local/bin/gog`**) to **`/usr/local/bin/gog`** in **gateway** and **openclaw-cli** when that host file exists, and mounts **`OPENCLAW_GOGCLI_CONFIG_DIR`** (default **`./.openclaw-gog-config`**) to **`/home/node/.config/gogcli`** so OAuth credentials and the file keyring match your host **`gog auth`** (set **`OPENCLAW_GOGCLI_CONFIG_DIR`** to your host’s **`~/.config/gogcli`** on the VM, e.g. **`/home/ubuntu/.config/gogcli`**).
+2. **gogcli data for Docker (important):** the gateway runs as **UID 1000** (`node`). If **`OPENCLAW_GOGCLI_CONFIG_DIR`** points at **`~/.config/gogcli`** owned only by your SSH user, **`gog`** inside the container gets **`permission denied`**. Recommended:
+   - Set **`OPENCLAW_GOGCLI_CONFIG_DIR=./.openclaw-gog-config`** in **`.env`** (default in **`docker-compose.gog.yml`**).
+   - After every host **`gog auth`** (or token refresh), run **`./scripts/sync-gog-cli-config.sh`** (or **`make sync-gog-config`**) from repo root: it **`rsync`**s from **`$HOME/.config/gogcli`** (override with **`GOGCLI_SOURCE_DIR`**) into that directory and **`chown`s to `1000:1000`**.
+   - Then **`./scripts/reown-openclaw-mounts.sh --container`** (if needed) and **`./scripts/docker-compose.sh restart openclaw-gateway`**.
 3. Set **`GOG_KEYRING_BACKEND=file`**, **`GOG_KEYRING_PASSWORD`**, and optionally **`GOG_ACCOUNT`** in **`.env`** so gateway and CLI containers can open the same keyring as on the host.
 4. Use **`./scripts/docker-compose.sh`** for stack operations (**`make up`**, **`./scripts/deploy.sh`**, **`make logs`**, **`./scripts/rollback.sh`**) so the gog overlay is applied automatically. Raw **`docker compose -f docker-compose.yml …`** skips the mount unless you add **`-f docker-compose.gog.yml`** yourself.
 5. Store the **Desktop** OAuth client JSON, then authorize your Google account (see [gogcli Quickstart](https://github.com/openclaw/gogcli/blob/main/docs/quickstart.md)):
    - **`gog auth credentials /path/to/client_secret_….json`**
    - **`gog auth add you@gmail.com --services gmail,calendar,drive,docs,sheets`** (add other services you need).
 6. **Headless VM (no browser on the server):** do **not** rely on **`gog auth login`** opening `http://127.0.0.1:…` — that URL is only reachable on the VM. Use **`gog auth add … --manual`** for a paste-the-URL flow in your **laptop** browser, or **`gog auth add … --remote --step 1` / `--step 2`** for a split SSH flow ([Quickstart § Authorize](https://github.com/openclaw/gogcli/blob/main/docs/quickstart.md)). Optional: from your laptop, **`ssh -L <port>:127.0.0.1:<port> user@vm`** matches the printed port if you insist on the loopback flow (the port changes each run, so `--manual` is usually easier).
-7. Verify with **`gog auth doctor --check`** on the host (optional **`config.json` warning** can be ignored with a single default client). After **`docker compose` restart**, **`gog`** inside containers uses the same **`GOG_KEYRING_*`** **`.env`** values and the bind-mounted **`~/.config/gogcli`** directory.
+7. Verify with **`gog auth doctor --check`** on the host, then **`./scripts/sync-gog-cli-config.sh`** and the **`--entrypoint /bin/sh`** **`gog auth doctor`** check inside the container (see **Quick verify** above).
 
 ## Gmail (optional, advanced)
 

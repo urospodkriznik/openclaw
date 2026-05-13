@@ -36,6 +36,7 @@ jobs:
             scripts/bootstrap-config.sh \
             scripts/reown-openclaw-mounts.sh \
             scripts/docker-compose.sh \
+            scripts/sync-gog-cli-config.sh \
             docker-compose.gog.yml \
             config/openclaw.example.json5 \
             config/openclaw-timeouts.example.json5 \

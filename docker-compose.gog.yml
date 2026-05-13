@@ -1,7 +1,9 @@
 # Optional overlay: bind-mount host `gog` into gateway + CLI so `skills check` and
 # the agent see the same binary. Loaded only when scripts/docker-compose.sh detects
 # OPENCLAW_GOG_HOST_PATH (default /usr/local/bin/gog) on the host.
-# Also mounts host gogcli config (~/.config/gogcli on Linux) so tokens/keyring match.
+# Mounts OPENCLAW_GOGCLI_CONFIG_DIR (default ./.openclaw-gog-config) at /home/node/.config/gogcli.
+# That directory must be readable by UID 1000 — use ./scripts/sync-gog-cli-config.sh after host `gog auth`,
+# not a raw mount of ~/.config/gogcli owned only by your SSH user (permission denied in the container).
 # See docs/GOOGLE_INTEGRATIONS.md (gog / Google Workspace CLI).
 
 services:
