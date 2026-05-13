@@ -105,7 +105,7 @@ Details, API enablement, and OAuth vs Secret Manager: **[docs/GOOGLE_INTEGRATION
 
 The **`openclaw-gateway`** process runs as **UID 1000**. Bind-mounting **`/home/youruser/.config/gogcli`** from the host keeps **your** UID on files, so **`node`** cannot read **`credentials.json`** or write the keyring.
 
-**Fix:** use **`OPENCLAW_GOGCLI_CONFIG_DIR=./.openclaw-gog-config`**, run **`./scripts/sync-gog-cli-config.sh`** after host **`gog auth`** (copies **`~/.config/gogcli`** with **`rsync`** as you, then **`sudo -n chown`** to **`1000:1000`** — same passwordless **`chown`** sudoers as **`reown-openclaw-mounts.sh`**), then **`./scripts/docker-compose.sh restart openclaw-gateway`**. See **[docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md)** (gog skill).
+**Fix:** use **`OPENCLAW_GOGCLI_CONFIG_DIR=./.openclaw-gog-config`**, run **`./scripts/sync-gog-cli-config.sh`** after host **`gog auth`** (copies **`~/.config/gogcli`** with **`rsync`** or **`tar`** as you, then **`sudo -n chown`** to **`1000:1000`** — same passwordless **`chown`** sudoers as **`reown-openclaw-mounts.sh`**), then **`./scripts/docker-compose.sh restart openclaw-gateway`**. See **[docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md)** (gog skill).
 
 ## Telegram bot silent
 

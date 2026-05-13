@@ -4,7 +4,7 @@
 # owned only by your SSH user makes gog inside Docker hit "permission denied".
 #
 # Uses the same passwordless sudo pattern as reown-openclaw-mounts.sh: only `chown`
-# is invoked via sudo -n (no `sudo rsync`, so you are not prompted for rsync).
+# is invoked via sudo -n. Copies with `rsync` when installed, otherwise `tar` (no sudo copy).
 #
 # Run on the VM after `gog auth` (or whenever tokens/credentials change), from repo root:
 #   ./scripts/sync-gog-cli-config.sh
@@ -53,7 +53,7 @@ fi
 
 mkdir -p "$DST"
 
-# After a previous sync, $DST is often 1000:1000 — reclaim so rsync can run as you (no sudo rsync).
+# After a previous sync, $DST is often 1000:1000 — reclaim so we can copy as you (no sudo copy).
 if [[ ! -w "$DST" ]]; then
   if ! need_sudo_chown; then
     echo "sync-gog-cli-config: $DST is not writable by $(id -un); passwordless sudo for this exact binary is required:" >&2
@@ -61,12 +61,24 @@ if [[ ! -w "$DST" ]]; then
     echo "  (same as docs/GITHUB_ACTIONS.md for ./scripts/reown-openclaw-mounts.sh)" >&2
     exit 1
   fi
-  echo "sync-gog-cli-config: reclaim $DST -> $(id -un):$(id -gn) (for rsync)"
+  echo "sync-gog-cli-config: reclaim $DST -> $(id -un):$(id -gn) (for copy)"
   sudo -n "$CHOWN_BIN" -R "$(id -un):$(id -gn)" "$DST"
 fi
 
-echo "sync-gog-cli-config: rsync $SRC/ -> $DST/"
-rsync -a "$SRC/" "$DST/"
+copy_gogcli_tree() {
+  if command -v rsync >/dev/null 2>&1; then
+    echo "sync-gog-cli-config: rsync $SRC/ -> $DST/"
+    rsync -a "$SRC/" "$DST/"
+  elif command -v tar >/dev/null 2>&1; then
+    echo "sync-gog-cli-config: tar copy $SRC/ -> $DST/ (rsync not installed; optional: sudo apt install rsync)"
+    (cd "$SRC" && tar cf - .) | (cd "$DST" && tar xf -)
+  else
+    echo "sync-gog-cli-config: install rsync or tar (e.g. sudo apt install -y rsync)" >&2
+    exit 1
+  fi
+}
+
+copy_gogcli_tree
 
 if ! need_sudo_chown; then
   echo "sync-gog-cli-config: passwordless sudo required for $CHOWN_BIN to set UID 1000 ownership" >&2
