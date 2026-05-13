@@ -93,6 +93,13 @@ Details, API enablement, and OAuth vs Secret Manager: **[docs/GOOGLE_INTEGRATION
 - Confirm outbound HTTPS is allowed from the VM (NAT/firewall).
 - If using GSM mode, regenerate runtime env: `./scripts/fetch-secrets-gsm.sh`.
 
+## “Model idle timeout” / slow replies on Telegram
+
+OpenClaw may abort before the LLM finishes when provider HTTP/stream guards are tight or tools are slow.
+
+- Set **`GEMINI_PROVIDER_TIMEOUT_SECONDS`** (default **180**) in **`.env`** and re-run **`./scripts/bootstrap-config.sh`** so **`openclaw.json`** gets **`models.providers.google.timeoutSeconds`**. Increase further (e.g. **300**) if using **`gog`** or other exec-heavy skills on a small VM.
+- Confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs for API errors).
+
 ## GitHub Actions deploy fails SSH
 
 ### `ssh: unable to authenticate ... attempted methods [none publickey]`

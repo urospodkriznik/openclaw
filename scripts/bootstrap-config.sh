@@ -37,6 +37,13 @@ truthy() {
 
 PRIMARY_MODEL="google/${GEMINI_MODEL:-gemini-3-flash-preview}"
 
+# Per-provider HTTP/stream guard for Gemini (tools + slow networks); see docs.openclaw.ai model providers
+GEMINI_PROVIDER_TIMEOUT_SECONDS="${GEMINI_PROVIDER_TIMEOUT_SECONDS:-180}"
+if ! [[ "$GEMINI_PROVIDER_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "bootstrap-config: warning: invalid GEMINI_PROVIDER_TIMEOUT_SECONDS=$GEMINI_PROVIDER_TIMEOUT_SECONDS; using 180" >&2
+  GEMINI_PROVIDER_TIMEOUT_SECONDS=180
+fi
+
 # Host .env token for compose interpolation
 if [[ -f "$ENV_FILE" ]] && grep -qE '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE"; then
   line="$(grep -E '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE" | tail -n1)"
@@ -143,10 +150,12 @@ jq -n \
   --arg primary "$PRIMARY_MODEL" \
   --arg sec "$TOOLS_SECURITY" \
   --arg ask "$TOOLS_ASK" \
+  --argjson geminiTimeout "$GEMINI_PROVIDER_TIMEOUT_SECONDS" \
   '{
     gateway: { mode: "local", bind: "lan" },
     commands: { text: true, native: "auto", nativeSkills: "auto" },
     session: { dmScope: "main" },
+    models: { providers: { google: { timeoutSeconds: $geminiTimeout } } },
     agents: {
       defaults: {
         model: { primary: $primary },

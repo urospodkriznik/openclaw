@@ -16,6 +16,12 @@
   session: {
     dmScope: "main",
   },
+  // Longer provider guard helps Telegram + gog tool runs on small VMs (override via GEMINI_PROVIDER_TIMEOUT_SECONDS in .env)
+  models: {
+    providers: {
+      google: { timeoutSeconds: 180 },
+    },
+  },
   agents: {
     defaults: {
       model: {
