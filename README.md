@@ -105,7 +105,7 @@ If the official image is **linux/amd64** only on **Apple Silicon**, add a Compos
 
 ### GCP VM (production)
 
-**Prereqs:** Ubuntu 24.04 VM, IAM (Secret Manager accessor on the VM service account if using GSM). Docker installed, or use `INSTALL_HOST_DEPS=1` on first `make init-vm` (sudo).
+**Prereqs:** Ubuntu 24.04 VM, IAM (Secret Manager accessor on the VM service account if using GSM). Docker installed, or use `INSTALL_HOST_DEPS=1` on first `make init-vm` (sudo). `make` is installed by `setup-server.sh`; without it run `./scripts/init-vm.sh` directly.
 
 ```bash
 git clone https://github.com/<you>/openclaw.git

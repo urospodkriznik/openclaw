@@ -17,6 +17,8 @@ fi
 CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-./.openclaw-config}"
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-./workspace}"
 IMAP_SMTP_DIR="${OPENCLAW_IMAP_SMTP_CONFIG_DIR:-./.openclaw-imap-smtp}"
+GOG_STAGING_DIR="${OPENCLAW_GOGCLI_CONFIG_DIR:-./.openclaw-gog-config}"
+HOST_BIN_DIR="${ROOT_DIR}/.openclaw-host-bin"
 
 usage() {
   echo "usage: $0 --host | --container" >&2
@@ -43,21 +45,37 @@ need_sudo_chown() {
   return 1
 }
 
-mkdir -p "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR"
+host_mount_paths() {
+  printf '%s\n' "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR" "$GOG_STAGING_DIR" "$HOST_BIN_DIR"
+}
+
+mkdir -p "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR" "$GOG_STAGING_DIR" "$HOST_BIN_DIR"
 
 if [[ "$1" == "--host" ]]; then
-  if [[ -w "$CONFIG_DIR" ]] && [[ -w "$WORKSPACE_DIR" ]] && [[ -w "$IMAP_SMTP_DIR" ]]; then
-    echo "reown-openclaw-mounts: $CONFIG_DIR, $WORKSPACE_DIR, $IMAP_SMTP_DIR already writable by $(id -un)"
+  p=""
+  all_writable=1
+  while IFS= read -r p; do
+    [[ -e "$p" ]] || continue
+    if [[ ! -w "$p" ]]; then
+      all_writable=0
+      break
+    fi
+  done < <(host_mount_paths)
+  if ((all_writable)); then
+    echo "reown-openclaw-mounts: bind-mount paths already writable by $(id -un)"
     exit 0
   fi
   if ! need_sudo_chown; then
     echo "reown-openclaw-mounts: not writable by $(id -un); passwordless sudo required for this exact binary:" >&2
     echo "  $(id -un) ALL=(ALL) NOPASSWD: $CHOWN_BIN" >&2
-    echo "Then run: sudo \"$CHOWN_BIN\" -R \"$(id -un):$(id -gn)\" \"$ROOT_DIR/$CONFIG_DIR\" \"$ROOT_DIR/$WORKSPACE_DIR\" \"$ROOT_DIR/$IMAP_SMTP_DIR\"" >&2
+    echo "Or run once: sudo $CHOWN_BIN -R $(id -un):$(id -gn) $CONFIG_DIR $WORKSPACE_DIR $IMAP_SMTP_DIR $GOG_STAGING_DIR $HOST_BIN_DIR" >&2
     exit 1
   fi
-  echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR $IMAP_SMTP_DIR -> $(id -un):$(id -gn) (for bootstrap)"
-  sudo -n "$CHOWN_BIN" -R "$(id -un):$(id -gn)" "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR"
+  echo "reown-openclaw-mounts: chown bind-mount paths -> $(id -un):$(id -gn) (for bootstrap / cleanup)"
+  while IFS= read -r p; do
+    [[ -e "$p" ]] || continue
+    sudo -n "$CHOWN_BIN" -R "$(id -un):$(id -gn)" "$p"
+  done < <(host_mount_paths)
   exit 0
 fi
 
@@ -71,5 +89,8 @@ if ! need_sudo_chown; then
   echo "Configure NOPASSWD chown for this user, or see docs/TROUBLESHOOTING.md (EACCES)." >&2
   exit 1
 fi
-echo "reown-openclaw-mounts: chown $CONFIG_DIR $WORKSPACE_DIR $IMAP_SMTP_DIR -> 1000:1000 (for container)"
-sudo -n "$CHOWN_BIN" -R 1000:1000 "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR"
+echo "reown-openclaw-mounts: chown bind-mount paths -> 1000:1000 (for container)"
+while IFS= read -r p; do
+  [[ -e "$p" ]] || continue
+  sudo -n "$CHOWN_BIN" -R 1000:1000 "$p"
+done < <(host_mount_paths)
