@@ -269,7 +269,22 @@ fi
 step "Health check"
 ./scripts/healthcheck.sh
 
-primary="$(jq -r '.agents.defaults.model.primary // "unknown"' "$(config_dir)/openclaw.json" 2>/dev/null || echo "unknown")"
+read_primary_model() {
+  local cfg primary
+  cfg="$(config_dir)/openclaw.json"
+  if [[ -r "$cfg" ]]; then
+    primary="$(jq -r '.agents.defaults.model.primary // empty' "$cfg" 2>/dev/null || true)"
+    if [[ -n "$primary" ]]; then
+      printf '%s' "$primary"
+      return 0
+    fi
+  fi
+  "${COMPOSE_PROD[@]}" exec -T openclaw-gateway \
+    jq -r '.agents.defaults.model.primary // empty' /home/node/.openclaw/openclaw.json 2>/dev/null \
+    || printf 'unknown'
+}
+
+primary="$(read_primary_model)"
 echo ""
 echo "setup-vm: done."
 echo "  Model: $primary (LLM_PROVIDER=${LLM_PROVIDER:-google})"

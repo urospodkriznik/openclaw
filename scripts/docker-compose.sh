@@ -20,9 +20,14 @@ fi
 # image OS is Linux). macOS Homebrew gog is Mach-O and will not run — use
 # ./scripts/install-gog-linux-for-docker.sh to populate .openclaw-host-bin/gog.
 gog_is_linux_elf() {
+  local magic
   [[ -f "$1" ]] || return 1
-  file -b "$1" 2>/dev/null | grep -qi 'ELF' && return 0
-  return 1
+  if command -v file >/dev/null 2>&1; then
+    file -b "$1" 2>/dev/null | grep -qi 'ELF' && return 0
+  fi
+  # Minimal VMs often lack the `file` package; read ELF magic (0x7f 'ELF').
+  magic="$(head -c 4 "$1" 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n' || true)"
+  [[ "$magic" == "7f454c46" ]]
 }
 
 pick_gog_host_binary() {

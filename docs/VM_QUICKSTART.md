@@ -83,9 +83,11 @@ This runs: reown → bootstrap → GSM fetch → compose up → Telegram `channe
 2. If pairing is required:
 
 ```bash
-./scripts/docker-compose.sh run -T --rm openclaw-cli pairing list
+./scripts/docker-compose.sh run -T --rm openclaw-cli pairing list telegram
 ./scripts/docker-compose.sh run -T --rm openclaw-cli pairing approve telegram <CODE>
 ```
+
+Or approve in the Telegram chat with **`/approve`** when the bot prompts you.
 
 3. `/new` then ask a short question.
 

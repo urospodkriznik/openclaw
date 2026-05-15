@@ -21,6 +21,20 @@ If the gateway **exits repeatedly** after **`./scripts/bootstrap-config.sh`** or
 
 Avoid **`docker compose restart`** for this stack unless you restart **both** services in a way that recreates the pair; **`up -d --force-recreate`** is the reliable pattern.
 
+## `docker-compose.sh: skipping gog overlay` but `.openclaw-host-bin/gog` exists
+
+The compose wrapper checks that the host **`gog`** binary is **Linux ELF**. It uses the **`file`** command when installed; on minimal Ubuntu images **`file` is often missing**, so detection failed even though **`gog` is valid**.
+
+**Fix (either):**
+
+```bash
+sudo apt-get install -y file
+# or pull latest repo (docker-compose.sh falls back to ELF magic bytes without `file`)
+./scripts/docker-compose.sh up -d --force-recreate
+```
+
+Confirm the overlay loads: compose should **not** print `skipping gog overlay`. Then continue OAuth in [GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md).
+
 ## `gog` in container: “Mach-O” / “wrong executable format” / macOS binary on Linux
 
 The OpenClaw image is **Linux**. Bind-mounting **`gog` from Homebrew on a Mac** mounts a **Mach-O** binary; the kernel inside the container expects **ELF**.
