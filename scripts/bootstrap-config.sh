@@ -36,7 +36,28 @@ truthy() {
   esac
 }
 
-PRIMARY_MODEL="google/${GEMINI_MODEL:-gemini-3-flash-preview}"
+llm_provider_lc() {
+  echo "${LLM_PROVIDER:-google}" | tr '[:upper:]' '[:lower:]'
+}
+
+resolve_primary_model() {
+  local p
+  p="$(llm_provider_lc)"
+  case "$p" in
+    openai)
+      printf 'openai/%s' "${OPENAI_MODEL:-gpt-4.1-mini}"
+      ;;
+    google | gemini)
+      printf 'google/%s' "${GEMINI_MODEL:-gemini-3-flash-preview}"
+      ;;
+    *)
+      echo "bootstrap-config: LLM_PROVIDER must be google or openai (got: ${LLM_PROVIDER:-})" >&2
+      exit 1
+      ;;
+  esac
+}
+
+PRIMARY_MODEL="$(resolve_primary_model)"
 
 # Host .env token for compose interpolation
 if [[ -f "$ENV_FILE" ]] && grep -qE '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE"; then
@@ -140,11 +161,31 @@ fi
 # - session.dmScope main: single-user DMs share one session (continuity across messages).
 # - startupContext.applyOn: only "reset" avoids re-injecting the first-turn startup prelude on every turn
 #   when the runtime treats a turn as "new" (fixes repeated "fresh workspace" replies in Telegram).
-jq -n \
-  --arg primary "$PRIMARY_MODEL" \
-  --arg sec "$TOOLS_SECURITY" \
-  --arg ask "$TOOLS_ASK" \
-  '{
+# If openclaw.json already exists (Telegram channels, plugins, etc.), merge only model.primary + tools.exec.
+write_openclaw_json() {
+  local tmp="${OPENCLAW_JSON}.tmp"
+  if [[ -f "$OPENCLAW_JSON" ]] && jq -e 'type == "object"' "$OPENCLAW_JSON" >/dev/null 2>&1; then
+    if jq --arg primary "$PRIMARY_MODEL" \
+      --arg sec "$TOOLS_SECURITY" \
+      --arg ask "$TOOLS_ASK" \
+      '
+      .agents //= {}
+      | .agents.defaults //= {}
+      | .agents.defaults.model //= {}
+      | .agents.defaults.model.primary = $primary
+      | .tools //= {}
+      | .tools.exec = { host: "gateway", security: $sec, ask: $ask }
+      ' "$OPENCLAW_JSON" >"$tmp" 2>/dev/null; then
+      mv "$tmp" "$OPENCLAW_JSON"
+      return 0
+    fi
+    rm -f "$tmp"
+  fi
+  jq -n \
+    --arg primary "$PRIMARY_MODEL" \
+    --arg sec "$TOOLS_SECURITY" \
+    --arg ask "$TOOLS_ASK" \
+    '{
     gateway: { mode: "local", bind: "lan" },
     commands: { text: true, native: "auto", nativeSkills: "auto" },
     session: { dmScope: "main" },
@@ -155,12 +196,22 @@ jq -n \
       }
     },
     tools: { exec: { host: "gateway", security: $sec, ask: $ask } }
-  }' >"${OPENCLAW_JSON}.tmp"
-mv "${OPENCLAW_JSON}.tmp" "$OPENCLAW_JSON"
+  }' >"$tmp"
+  mv "$tmp" "$OPENCLAW_JSON"
+}
+
+write_openclaw_json
 
 echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL)"
 if truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}" && ! truthy "${FULL_AUTONOMY:-false}"; then
   echo "Headless exec: tools.exec + exec-approvals use security=full ask=off (no Control UI). Gmail/Calendar/Drive need skills + OAuth per docs/GOOGLE_INTEGRATIONS.md."
 fi
 echo "Next: add Telegram — ./scripts/docker-compose.sh run -T --rm openclaw-cli channels add --channel telegram --token \"\$TELEGRAM_BOT_TOKEN\""
-echo "Gemini: set GEMINI_API_KEY in .env (or GSM_GEMINI_API_KEY_SECRET + fetch-secrets-gsm.sh). Verify: ./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider google"
+case "$(llm_provider_lc)" in
+  openai)
+    echo "OpenAI: set OPENAI_API_KEY in .env. Verify: ./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider openai"
+    ;;
+  *)
+    echo "Gemini: set GEMINI_API_KEY in .env (or GSM_GEMINI_API_KEY_SECRET + fetch-secrets-gsm.sh). Verify: ./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider google"
+    ;;
+esac

@@ -1,17 +1,22 @@
-# Optional overlay: bind-mount host `gog` into gateway + CLI so `skills check` and
-# the agent see the same binary. Loaded only when scripts/docker-compose.sh detects
-# OPENCLAW_GOG_HOST_PATH (default /usr/local/bin/gog) on the host.
-# Mounts OPENCLAW_GOGCLI_CONFIG_DIR (default ./.openclaw-gog-config) at /home/node/.config/gogcli.
-# That directory must be readable by UID 1000 — use ./scripts/sync-gog-cli-config.sh after host `gog auth`,
-# not a raw mount of ~/.config/gogcli owned only by your SSH user (permission denied in the container).
-# See docs/GOOGLE_INTEGRATIONS.md (gog / Google Workspace CLI).
+# Optional overlay: bind-mount a **Linux ELF** host `gog` into gateway + CLI. Loaded when
+# scripts/docker-compose.sh finds such a binary (OPENCLAW_GOG_HOST_PATH, or .openclaw-host-bin/gog
+# from install-gog-linux-for-docker.sh, or /usr/local/bin/gog). macOS Mach-O builds are skipped.
+#
+# gogcli **OAuth state** uses a **named Docker volume** (not a bind mount from the Mac):
+# Docker Desktop’s Linux VM often cannot stat files bind-mounted from macOS (????????? / EACCES).
+# Host path OPENCLAW_GOGCLI_CONFIG_DIR (default ./.openclaw-gog-config) is the **staging** copy:
+# run ./scripts/sync-gog-cli-config.sh then ./scripts/push-gogcli-to-gateway.sh (or make targets that call it).
+# See docs/GOOGLE_INTEGRATIONS.md and docs/TROUBLESHOOTING.md.
 
 services:
   openclaw-gateway:
     volumes:
       - ${OPENCLAW_GOG_HOST_PATH:-/usr/local/bin/gog}:/usr/local/bin/gog:ro
-      - ${OPENCLAW_GOGCLI_CONFIG_DIR:-./.openclaw-gog-config}:/home/node/.config/gogcli
+      - openclaw_gogcli_config:/home/node/.config/gogcli
   openclaw-cli:
     volumes:
       - ${OPENCLAW_GOG_HOST_PATH:-/usr/local/bin/gog}:/usr/local/bin/gog:ro
-      - ${OPENCLAW_GOGCLI_CONFIG_DIR:-./.openclaw-gog-config}:/home/node/.config/gogcli
+      - openclaw_gogcli_config:/home/node/.config/gogcli
+
+volumes:
+  openclaw_gogcli_config:

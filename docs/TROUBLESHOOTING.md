@@ -1,5 +1,36 @@
 # Troubleshooting
 
+## Gateway restart loop / “unhealthy” right after editing `openclaw.json`
+
+If the gateway **exits repeatedly** after **`./scripts/bootstrap-config.sh`** or a manual merge, the image may **reject unknown keys** in **`openclaw.json`**.
+
+1. **Logs:** `./scripts/docker-compose.sh -f docker-compose.dev.yml logs --tail=80 openclaw-gateway` — look for config / Zod validation errors.
+2. **Recover:** from repo root run **`./scripts/bootstrap-config.sh`** again (template emits only keys this repo supports), then **`make restart-dev`**.
+
+## `docker compose restart` — only CLI runs, or gateway stuck / unhealthy
+
+**`openclaw-cli`** uses **`network_mode: service:openclaw-gateway`**: it joins the **gateway** container’s network namespace. If you **`docker compose restart openclaw-gateway`** (or Compose restarts services in an order that recreates the gateway while the CLI container is unchanged), the CLI can stay attached to an **old** netns while the gateway is a **new** container — the stack looks broken (e.g. only CLI “up”, gateway exited, or no `/healthz`).
+
+**Do this instead** (recreate **both** services):
+
+```bash
+./scripts/docker-compose.sh -f docker-compose.dev.yml up -d --force-recreate
+# or: make restart-dev
+# or: down then up -d
+```
+
+Avoid **`docker compose restart`** for this stack unless you restart **both** services in a way that recreates the pair; **`up -d --force-recreate`** is the reliable pattern.
+
+## `gog` in container: “Mach-O” / “wrong executable format” / macOS binary on Linux
+
+The OpenClaw image is **Linux**. Bind-mounting **`gog` from Homebrew on a Mac** mounts a **Mach-O** binary; the kernel inside the container expects **ELF**.
+
+**Fix:** `make install-gog-linux` (downloads [gogcli](https://github.com/openclaw/gogcli) `linux_amd64` or set **`GOG_LINUX_ARCH=arm64`**), then `make restart-dev`. Keep using **macOS `gog auth`** for OAuth; **`make sync-gog-config`** copies tokens into **`.openclaw-gog-config`**.
+
+### Agent still says “macOS binary” after `make install-gog-linux`
+
+The gateway may already be correct. Run **`make verify-gog`** (or **`./scripts/verify-gog-in-container.sh -f docker-compose.dev.yml`**) and check the printed **magic** bytes: **ELF** is **`7f 45 4c 46`**. If that matches but the assistant in Telegram disagrees, it is usually **stale session context** from before the fix — use **`/new`** or a **reset** flow for that chat (per [session](https://docs.openclaw.ai/concepts/session) docs), or ask it to run **`sh -lc 'head -c 4 /usr/local/bin/gog | od -An -tx1; gog version'`** and trust the tool output over its prior narrative.
+
 ## `apt-get update` fails on `dl.google.com` / Chrome (`File has unexpected size`)
 
 Google’s **Chrome** APT repo sometimes returns a **Packages** index that does not match the **Release** file while mirrors sync (`1213 != 1212`, “Mirror sync in progress”). That is **upstream/transient**, not an OpenClaw bug.
@@ -75,7 +106,7 @@ This template’s **`./scripts/bootstrap-config.sh`** writes:
 - **`agents.defaults.startupContext.applyOn: ["reset"]`** — prelude runs on **explicit reset** paths, not on every `new` signal.
 - **`commands.text: true`** — Telegram slash commands are parsed from message text when `bot_command` entities are missing ([upstream discussion](https://github.com/openclaw/openclaw/issues/27012)).
 
-Re-run **`./scripts/bootstrap-config.sh`** on the VM (or redeploy), then **`docker compose restart openclaw-gateway`**.
+Re-run **`./scripts/bootstrap-config.sh`** on the VM (or redeploy), then **`./scripts/docker-compose.sh up -d --force-recreate`** (recreate gateway + CLI).
 
 If it persists, check gateway logs for **session key** stability and inspect sessions per [Session management](https://docs.openclaw.ai/concepts/session) (e.g. **`docker compose exec openclaw-cli sh -lc 'node dist/index.js sessions --help'`** on your OpenClaw version).
 
@@ -89,6 +120,19 @@ Default **`SAFE_MODE`** sets **`tools.exec.ask: on-miss`** and **`askFallback: d
 2. **Single trusted VM:** **`TRUSTED_HEADLESS_EXEC=true`** and **`I_ACCEPT_HEADLESS_EXEC_RISK=1`** in **`.env`**, then **`./scripts/bootstrap-config.sh`** + gateway restart ([docs/SECURITY.md](SECURITY.md)).
 3. Upstream break-glass chat commands (e.g. **`/elevated full`**) for operators who understand the risk.
 
+### “Command approval unavailable” / approval timeout (Telegram only)
+
+If shell / **`gog`** commands never run and the UI shows **`Command approval unavailable`** or **approval timed out**, the gateway is in **`SAFE_MODE`** but **nothing is connected** that can answer [exec approvals](https://docs.openclaw.ai/tools/exec-approvals) (no Control UI on **18789**). Telegram DMs alone often **cannot** complete that approval path.
+
+On a **trusted personal** Mac (Docker only, no public exposure), set in **`.env`**:
+
+```bash
+TRUSTED_HEADLESS_EXEC=true
+I_ACCEPT_HEADLESS_EXEC_RISK=1
+```
+
+Then **`./scripts/bootstrap-config.sh`**, **`make restart-dev`**, and **`/new`** in Telegram. This matches the **headless exec** preset in [docs/SECURITY.md](SECURITY.md) (widens **gateway `tools.exec`** only — read the risk section first). Alternatively keep **`SAFE_MODE`** and open an **SSH tunnel** to **`127.0.0.1:18789`** so the Control UI can approve.
+
 ## Google Workspace from chat (Gmail, Calendar, Drive)
 
 This template does **not** install Gmail, Calendar, or Drive skills. The agent only gets those abilities after you add skills (or MCP) and auth.
@@ -101,11 +145,46 @@ This template does **not** install Gmail, Calendar, or Drive skills. The agent o
 
 Details, API enablement, and OAuth vs Secret Manager: **[docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md)**.
 
+## `gog` in Docker: `credentials.json` shows `?????????` / permission denied (inside container)
+
+**Cause (historical):** bind-mounting **`.openclaw-gog-config`** from **macOS** into the Linux VM could leave **`stat(2)`** / **`open(2)`** broken (**`?????????`**) even after **`xattr -cr`** and inode rewrites (**VirtioFS** quirks).
+
+**Current layout:** **`docker-compose.gog.yml`** mounts a **named Docker volume** at **`/home/node/.config/gogcli`** (Linux ext4 inside the VM). The host directory **`OPENCLAW_GOGCLI_CONFIG_DIR`** (default **`.openclaw-gog-config`**) is only a **staging** copy: **`make sync-gog-config`** refreshes it from **`~/Library/Application Support/gogcli`** (or **`~/.config/gogcli`**), then **`make push-gog-gateway`** (or **`./scripts/push-gogcli-to-gateway.sh`**) streams a **tar** archive into the running gateway via **`docker exec`** so OAuth files land on the volume without crossing the broken bind path.
+
+```bash
+make sync-gog-config
+make restart-dev
+# or with the stack already up:
+make push-gog-gateway
+```
+
+**`make restart-dev`** / **`local`** / **`dev`** / **`restart`** wait briefly, then run **`push-gogcli-to-gateway.sh`** (errors ignored if gog is not configured). If staging files are **`600`** and owned by **UID 1000**, the push script may prompt for **sudo** so **`tar`** can read them on the host.
+
+**`tar: Write error`:** usually a **broken pipe** — **`docker exec`** exited while the gateway was still booting (or crashed). **`push-gogcli-to-gateway.sh`** now waits for **`http://127.0.0.1:18789/healthz`** inside the container (up to **90s**) **before** clearing the gog volume and streaming. If a failed push left the volume empty, run **`make sync-gog-config`** then **`make push-gog-gateway`** again. If **`/healthz`** never succeeds, inspect gateway logs and **`openclaw-config/openclaw.json`** (a bad config merge can prevent startup).
+
+**`docker compose down -v`** / **`make clean`** removes named volumes including **`openclaw_gogcli_config`** — re-run **`make sync-gog-config`** and **`make push-gog-gateway`** (or **`make restart-dev`**) to repopulate.
+
+Verify:
+
+```bash
+./scripts/docker-compose.sh exec -T openclaw-gateway ls -la /home/node/.config/gogcli/credentials.json
+```
+
 ## `gog` in Docker: `permission denied` on `/home/node/.config/gogcli`
 
-The **`openclaw-gateway`** process runs as **UID 1000**. Bind-mounting **`/home/youruser/.config/gogcli`** from the host keeps **your** UID on files, so **`node`** cannot read **`credentials.json`** or write the keyring.
+The **`openclaw-gateway`** process runs as **UID 1000**. Use host staging **`OPENCLAW_GOGCLI_CONFIG_DIR=./.openclaw-gog-config`**, run **`./scripts/sync-gog-cli-config.sh`** after host **`gog auth`**, then **`./scripts/push-gogcli-to-gateway.sh`** (or **`make push-gog-gateway`**) so files exist on the **named volume** with **`node`**-readable ownership. See **[docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md)** (gog skill).
 
-**Fix:** use **`OPENCLAW_GOGCLI_CONFIG_DIR=./.openclaw-gog-config`**, run **`./scripts/sync-gog-cli-config.sh`** after host **`gog auth`** (copies **`~/.config/gogcli`** with **`rsync`** or **`tar`** as you, then **`sudo -n chown`** to **`1000:1000`** — same passwordless **`chown`** sudoers as **`reown-openclaw-mounts.sh`**), then **`./scripts/docker-compose.sh restart openclaw-gateway`**. See **[docs/GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md)** (gog skill).
+## Docker Desktop (Mac): `restart` fails — `mkdir ... .openclaw-gog-config: file exists`
+
+After **`chown -R 1000:1000`** on **`.openclaw-gog-config`**, directories copied from **`~/Library/Application Support/gogcli`** are often mode **`700`**. Your Mac user can no longer traverse that path; **Docker Desktop** can then fail when (re)creating the bind mount, sometimes with a misleading **`mkdir ... file exists`** error.
+
+**Fix:** re-run **`./scripts/sync-gog-cli-config.sh`** (current script sets **dirs `755`**, **files `600`** after `chown`), or manually:
+
+```bash
+sudo sh -c 'chown -R 1000:1000 .openclaw-gog-config && find .openclaw-gog-config -type d -exec chmod 755 {} + && find .openclaw-gog-config -type f -exec chmod 600 {} +'
+```
+
+Then **`./scripts/docker-compose.sh … down`** and **`up -d`** (cleaner than **`restart`** if Docker was wedged).
 
 ## Telegram bot silent
 
@@ -132,7 +211,7 @@ The **`openclaw-gateway`** process runs as **UID 1000**. Bind-mounting **`/home/
 
 5. **Stale config:** If **`./healthz`** works but Telegram is dead, confirm **`TELEGRAM_BOT_TOKEN`** is still present (host **`.env`** + **`.env.generated`** when **`USE_GSM_SECRETS=true`**) and run **`./scripts/fetch-secrets-gsm.sh`** then **`up -d`** again.
 
-6. **Config schema:** Very old gateway images might reject unknown keys. If logs show a parse error on **`agents.defaults.llm`**, remove that block from **`openclaw.json`** or upgrade **`OPENCLAW_IMAGE`**, then **`restart openclaw-gateway`**.
+6. **Config schema:** Very old gateway images might reject unknown keys. If logs show a parse error on **`agents.defaults.llm`**, remove that block from **`openclaw.json`** or upgrade **`OPENCLAW_IMAGE`**, then **`./scripts/docker-compose.sh up -d --force-recreate`** (gateway + CLI).
 
 ## Gateway stuck `Restarting (1)` (crash loop)
 
@@ -142,7 +221,9 @@ Often **`openclaw.json`** is invalid for this image or **replaces** built-in pro
 
 2. **Partial `models.providers.google`:** A minimal object like `{ "timeoutSeconds": 180 }` can **wipe** the bundled Google provider definition on some versions → immediate exit. **Remove** the entire **`models`** key from **`openclaw.json`** unless you merged a **full** provider per upstream docs, then re-run **`./scripts/reown-openclaw-mounts.sh --container`** and **`./scripts/docker-compose.sh up -d`**.
 
-3. **Recover minimal config:** From repo root: **`./scripts/reown-openclaw-mounts.sh --host`**, **`./scripts/bootstrap-config.sh`**, **`./scripts/reown-openclaw-mounts.sh --container`**, **`./scripts/docker-compose.sh up -d`**.
+3. **`agents.defaults.llm` / `timeoutSeconds`:** If **`/healthz`** never succeeds right after merging idle/turn limits, remove them: **`jq 'del(.agents.defaults.timeoutSeconds, .agents.defaults.llm)' .openclaw-config/openclaw.json`** (write to a temp file, **`mv`**, then **`make restart-dev`**). See **“Model idle timeout”** below.
+
+4. **Recover minimal config:** From repo root: **`./scripts/reown-openclaw-mounts.sh --host`**, **`./scripts/bootstrap-config.sh`**, **`./scripts/reown-openclaw-mounts.sh --container`**, **`./scripts/docker-compose.sh up -d`** (note: **`bootstrap-config.sh`** overwrites **`openclaw.json`** with the template minimal shape — back up first if you added channels/plugins by hand).
 
 ## “Model idle timeout” / slow replies on Telegram
 
@@ -152,7 +233,21 @@ OpenClaw uses separate limits (see [model providers](https://docs.openclaw.ai/co
 - **`agents.defaults.timeoutSeconds`** — max time for a **whole agent turn**.
 - **`models.providers.<id>.timeoutSeconds`** — provider **HTTP** guard (not the same as idle streaming).
 
-**This repo’s `bootstrap-config.sh` does not write these keys** (doing so with a bare **`google`** provider object has crashed gateways). Merge optional fragments from **`config/openclaw-timeouts.example.json5`** only after you confirm your **`OPENCLAW_IMAGE`** supports them, then **`restart openclaw-gateway`**.
+**This repo’s `bootstrap-config.sh` does not write these keys** (doing so with a bare **`google`** provider object has crashed gateways). Merge optional fragments from **`config/openclaw-timeouts.example.json5`** only after you confirm your **`OPENCLAW_IMAGE`** supports them, then **`./scripts/docker-compose.sh up -d --force-recreate`** (gateway + CLI).
+
+**Safer first step:** some **`OPENCLAW_IMAGE`** builds **crash or restart-loop** when **`agents.defaults.llm`** (or even **`agents.defaults.timeoutSeconds`**) is present — **`/healthz` never goes OK**. If that happens, **remove** those keys and recreate:
+
+```bash
+cd /path/to/openclaw_dock
+jq 'del(.agents.defaults.timeoutSeconds, .agents.defaults.llm)' \
+  .openclaw-config/openclaw.json > .openclaw-config/openclaw.json.tmp &&
+mv .openclaw-config/openclaw.json.tmp .openclaw-config/openclaw.json
+make restart-dev
+```
+
+Before editing again, confirm the schema for your image in [model providers](https://docs.openclaw.ai/concepts/model-providers) / gateway docs. Until then, expect occasional **“model idle timeout”** on long **`gog`** tool chains.
+
+**Do not** paste a bare **`models.providers.google`** fragment unless you merge a **full** provider object (see **Gateway stuck `Restarting`** above).
 
 Also confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs for API errors).
 

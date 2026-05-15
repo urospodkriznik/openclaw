@@ -5,6 +5,8 @@
 // After verifying your image supports these keys (see https://docs.openclaw.ai/concepts/model-providers
 // and gateway configuration docs), merge manually or with jq, then restart the gateway.
 //
+// WARNING: Some images restart-loop if `agents.defaults.llm` or `agents.defaults.timeoutSeconds`
+// are present. If /healthz never succeeds, remove those keys (see docs/TROUBLESHOOTING.md).
 // Example knobs:
 // - models.providers.<id>.timeoutSeconds — provider HTTP/stream guard
 // - agents.defaults.llm.idleTimeoutSeconds — "model idle timeout" (gap without streamed tokens)

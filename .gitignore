@@ -1,11 +1,14 @@
-# Local secrets and environment
-.env
-.env.generated
-.env.local
-.env.*.local
+# --- Local secrets and environment ---
+.env*
+!.env.example
+
+# SSH / TLS private material
 *.pem
 id_rsa
 id_ed25519
+deploy_key
+deploy_key.pem
+*.ppk
 
 # Service account keys (never commit); keep directory with .gitkeep
 secrets/*
@@ -13,29 +16,49 @@ secrets/*
 *.json.key
 *-sa.json
 gcp-sa.json
+service-account*.json
+application_default_credentials.json
 
-# OpenClaw runtime on developer machines (if copied beside repo)
+# Google OAuth client downloads / gogcli (if dropped in repo root by mistake)
+client_secret*.json
+credentials.json
+
+# --- OpenClaw bind-mounts (see .env.example OPENCLAW_*_DIR) ---
 .openclaw/
 .openclaw-config/
 .openclaw-imap-smtp/
 .openclaw-gog-config/
+# Linux ELF gog for Docker bind-mount — see install-gog-linux-for-docker.sh
+.openclaw-host-bin/
 
-# OS / editor
+# OpenClaw workspace bind-mount (repo-root only): agent home — SOUL.md, skills, memory, inbox/out, …
+# Docker creates the host path on first mount if missing.
+/workspace/
+
+# Merged config copies (examples in config/*.example.json5 stay tracked)
+config/*.json5
+!config/*.example.json5
+
+# Accidental copies at repo root
+/openclaw.json
+/exec-approvals.json
+
+# --- Docker Compose local overrides (not part of the template) ---
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# --- OS / editor ---
 .DS_Store
+Thumbs.db
 *.swp
 *.swo
 .idea/
 .vscode/
 
-# Backups produced by scripts
+# --- Backups / deploy / logs ---
 backups/
 *.tar.gz
-
-# Workspace user data (keep directory structure via .gitkeep)
-workspace/inbox/*
-!workspace/inbox/.gitkeep
-workspace/out/*
-!workspace/out/.gitkeep
-
-# Deploy rollback / state (on server / local)
+*.zip
 .deploy-state/
+*.log
+logs/

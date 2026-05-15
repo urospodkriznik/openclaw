@@ -59,6 +59,25 @@ fi
 : "${GOOGLE_CLOUD_PROJECT:?Set GOOGLE_CLOUD_PROJECT in .env}"
 : "${GOOGLE_CLOUD_LOCATION:?Set GOOGLE_CLOUD_LOCATION in .env}"
 : "${GEMINI_MODEL:=gemini-3-flash-preview}"
+: "${OPENAI_MODEL:=gpt-4.1-mini}"
+
+llm_provider_lc() {
+  echo "${LLM_PROVIDER:-google}" | tr '[:upper:]' '[:lower:]'
+}
+
+if [[ "${VALIDATION_LEVEL:-full}" == "full" ]]; then
+  case "$(llm_provider_lc)" in
+    openai)
+      if [[ -z "${OPENAI_API_KEY:-}" ]] && ! truthy "${USE_GSM_SECRETS:-false}"; then
+        err "LLM_PROVIDER=openai requires OPENAI_API_KEY in .env (or USE_GSM_SECRETS=true with secrets that supply it)."
+      fi
+      ;;
+    google | gemini) ;;
+    *)
+      err "LLM_PROVIDER must be google or openai (got: ${LLM_PROVIDER:-})"
+      ;;
+  esac
+fi
 
 CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-./.openclaw-config}"
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-./workspace}"
@@ -79,4 +98,4 @@ if truthy "${USE_GSM_SECRETS:-false}"; then
   : "${GSM_TELEGRAM_BOT_TOKEN_SECRET:?Set GSM_TELEGRAM_BOT_TOKEN_SECRET when USE_GSM_SECRETS=true}"
 fi
 
-echo "validate-env: OK (GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION gemini_model=$GEMINI_MODEL)"
+echo "validate-env: OK (GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION LLM_PROVIDER=${LLM_PROVIDER:-google} gemini_model=$GEMINI_MODEL openai_model=$OPENAI_MODEL)"

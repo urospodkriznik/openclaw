@@ -75,6 +75,9 @@ services:
       start_period: 600s
 
   openclaw-cli:
+    # Shares the gateway container's network namespace. Do NOT run
+    # `docker compose restart openclaw-gateway` alone — recreate both services instead:
+    # `docker compose up -d --force-recreate` or `down` then `up -d` (see docs/TROUBLESHOOTING.md).
     image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
     network_mode: "service:openclaw-gateway"
     env_file:
@@ -111,4 +114,5 @@ services:
     init: true
     entrypoint: ["node", "dist/index.js"]
     depends_on:
-      - openclaw-gateway
+      openclaw-gateway:
+        condition: service_started
