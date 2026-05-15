@@ -73,6 +73,12 @@ sudo chown -R "$(id -un):$(id -gn)" .openclaw-config workspace
 sudo chown -R 1000:1000 .openclaw-config workspace
 ```
 
+**`reown --host` run as root (`sudo bash -c '…'`)** used to no-op because root can write everything. The script now chowns to the **repo owner** (or **`OPENCLAW_DEPLOY_USER`**). Prefer:
+
+```bash
+sudo ./scripts/reown-openclaw-mounts.sh --host   # from the clone, as an admin with sudo
+```
+
 ## Permission errors (`EACCES`) under `/home/node/.openclaw`
 
 The container runs as **UID 1000**. Fix host ownership (same as **`reown-openclaw-mounts.sh --container`**):

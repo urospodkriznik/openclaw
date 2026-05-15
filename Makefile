@@ -5,7 +5,7 @@ COMPOSE ?= ./scripts/docker-compose.sh
 COMPOSE_FILES :=
 DEV_FILES := -f docker-compose.dev.yml
 
-.PHONY: setup init init-vm setup-local setup-vm dev local up down restart restart-dev restart-local logs health deploy rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
+.PHONY: setup init init-vm setup-local setup-vm wipe-vm dev local up down restart restart-dev restart-local logs health deploy rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
 
 # GCP VM base packages (sudo). For local Docker workstation use: make init
 setup:
@@ -24,6 +24,10 @@ init-vm:
 
 setup-vm:
 	@./scripts/setup-vm.sh
+
+# Remove containers + .openclaw-* state on a VM; keeps .env unless scripts/wipe-vm-state.sh --full
+wipe-vm:
+	@./scripts/wipe-vm-state.sh
 
 dev:
 	@$(COMPOSE) $(DEV_FILES) up -d --force-recreate

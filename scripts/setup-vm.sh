@@ -154,6 +154,33 @@ detect_gog_arch() {
   esac
 }
 
+config_dir() {
+  printf '%s' "${OPENCLAW_CONFIG_DIR:-./.openclaw-config}"
+}
+
+# UID 1000 must traverse .openclaw-config and read openclaw.json (see docs/TROUBLESHOOTING.md).
+ensure_config_mount_perms() {
+  local cfg dir
+  dir="$(config_dir)"
+  mkdir -p "$dir"
+  chmod 755 "$dir" 2>/dev/null || true
+  cfg="${dir}/openclaw.json"
+  if [[ -f "$cfg" ]]; then
+    chmod 644 "$cfg" 2>/dev/null || true
+  fi
+}
+
+run_reown() {
+  local mode="$1"
+  if ! ./scripts/reown-openclaw-mounts.sh "$mode"; then
+    echo "setup-vm: reown-openclaw-mounts.sh $mode failed." >&2
+    echo "  Configure passwordless sudo for chown, or run as a user with sudo." >&2
+    echo "  See docs/VM_QUICKSTART.md and docs/TROUBLESHOOTING.md" >&2
+    exit 1
+  fi
+  ensure_config_mount_perms
+}
+
 # --- main ---
 
 if [[ "${1:-}" == "--preflight-only" ]]; then
@@ -177,10 +204,11 @@ check_env_filled
 docker_ready
 
 step "Fix mount ownership on host (deploy user ↔ container UID 1000)"
-./scripts/reown-openclaw-mounts.sh --host || true
+run_reown --host
 
 step "Bootstrap OpenClaw config"
 ./scripts/bootstrap-config.sh
+ensure_config_mount_perms
 
 step "Align Gmail watcher env (if hooks enabled)"
 ./scripts/align-gmail-watcher-env.sh
@@ -212,7 +240,7 @@ if ! truthy "${SKIP_PULL:-0}"; then
 fi
 
 step "Fix mount ownership for container user"
-./scripts/reown-openclaw-mounts.sh --container || true
+run_reown --container
 
 step "Start gateway (production docker-compose.yml)"
 if truthy "${SETUP_NO_RECREATE:-0}"; then
@@ -220,7 +248,7 @@ if truthy "${SETUP_NO_RECREATE:-0}"; then
 else
   "${COMPOSE_PROD[@]}" up -d --force-recreate
 fi
-sleep 5
+sleep 15
 ./scripts/push-gogcli-to-gateway.sh || true
 
 if ! truthy "${SKIP_TELEGRAM:-0}" && [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]]; then
@@ -241,11 +269,14 @@ fi
 step "Health check"
 ./scripts/healthcheck.sh
 
+primary="$(jq -r '.agents.defaults.model.primary // "unknown"' "$(config_dir)/openclaw.json" 2>/dev/null || echo "unknown")"
 echo ""
 echo "setup-vm: done."
+echo "  Model: $primary (LLM_PROVIDER=${LLM_PROVIDER:-google})"
 echo ""
 echo "Next:"
-echo "  • Telegram: send ping to your bot; /approve if pairing is required"
+echo "  • Telegram: message your bot (use a dedicated VM bot — not the Mac token); /approve if pairing is required"
+echo "  • Guide:    docs/VM_QUICKSTART.md"
 echo "  • Updates:  make deploy   (git pull + restart on this VM)"
 echo "  • Logs:     make logs"
 echo "  • Restart:  make restart  (production compose, force-recreate + gog push)"

@@ -36,7 +36,9 @@ EOF
 
 Recommended on GCP: USE_GSM_SECRETS=true and GSM_* secret names (not raw tokens in .env).
 
-Set LLM_PROVIDER to google (default) or openai — only the matching GSM secret or API key is required.
+First VM install: use a NEW Telegram bot (BotFather), LLM_PROVIDER=google (Gemini), and:
+  SKIP_GOG=1 make init-vm
+See docs/VM_QUICKSTART.md for a clean wipe + reinstall.
 
 Host packages (once, with sudo):
   sudo ./scripts/setup-server.sh

@@ -51,31 +51,69 @@ host_mount_paths() {
 
 mkdir -p "$CONFIG_DIR" "$WORKSPACE_DIR" "$IMAP_SMTP_DIR" "$GOG_STAGING_DIR" "$HOST_BIN_DIR"
 
+# Deploy user edits on the host; default = owner of this repo (not root when invoked via sudo bash -c).
+host_owner() {
+  if [[ -n "${OPENCLAW_DEPLOY_USER:-}" ]]; then
+    printf '%s' "$OPENCLAW_DEPLOY_USER"
+    return
+  fi
+  local u
+  u="$(stat -c '%U' "$ROOT_DIR" 2>/dev/null || stat -f '%Su' "$ROOT_DIR" 2>/dev/null || true)"
+  if [[ -n "$u" && "$u" != "UNKNOWN" ]]; then
+    printf '%s' "$u"
+    return
+  fi
+  if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+    printf '%s' "$SUDO_USER"
+    return
+  fi
+  id -un
+}
+
+host_group() {
+  local u g
+  u="$(host_owner)"
+  g="$(id -gn "$u" 2>/dev/null || true)"
+  printf '%s' "${g:-$u}"
+}
+
+path_writable_by_user() {
+  local u="$1" p="$2"
+  if [[ "$(id -un)" == "$u" ]]; then
+    [[ -w "$p" ]]
+    return
+  fi
+  sudo -u "$u" test -w "$p" 2>/dev/null
+}
+
 if [[ "$1" == "--host" ]]; then
+  owner="$(host_owner)"
+  group="$(host_group)"
   p=""
-  all_writable=1
+  need_reown=0
   while IFS= read -r p; do
     [[ -e "$p" ]] || continue
-    if [[ ! -w "$p" ]]; then
-      all_writable=0
+    if ! path_writable_by_user "$owner" "$p"; then
+      need_reown=1
       break
     fi
   done < <(host_mount_paths)
-  if ((all_writable)); then
-    echo "reown-openclaw-mounts: bind-mount paths already writable by $(id -un)"
+  if (( ! need_reown )); then
+    echo "reown-openclaw-mounts: bind-mount paths already writable by $owner"
     exit 0
   fi
   if ! need_sudo_chown; then
-    echo "reown-openclaw-mounts: not writable by $(id -un); passwordless sudo required for this exact binary:" >&2
+    echo "reown-openclaw-mounts: not writable by $owner; passwordless sudo required for this exact binary:" >&2
     echo "  $(id -un) ALL=(ALL) NOPASSWD: $CHOWN_BIN" >&2
-    echo "Or run once: sudo $CHOWN_BIN -R $(id -un):$(id -gn) $CONFIG_DIR $WORKSPACE_DIR $IMAP_SMTP_DIR $GOG_STAGING_DIR $HOST_BIN_DIR" >&2
+    echo "Or run once: sudo $CHOWN_BIN -R $owner:$group $CONFIG_DIR $WORKSPACE_DIR $IMAP_SMTP_DIR $GOG_STAGING_DIR $HOST_BIN_DIR" >&2
     exit 1
   fi
-  echo "reown-openclaw-mounts: chown bind-mount paths -> $(id -un):$(id -gn) (for bootstrap / cleanup)"
+  echo "reown-openclaw-mounts: chown bind-mount paths -> $owner:$group (for bootstrap / cleanup)"
   while IFS= read -r p; do
     [[ -e "$p" ]] || continue
-    sudo -n "$CHOWN_BIN" -R "$(id -un):$(id -gn)" "$p"
+    sudo -n "$CHOWN_BIN" -R "$owner:$group" "$p"
   done < <(host_mount_paths)
+  chmod 755 "$CONFIG_DIR" 2>/dev/null || true
   exit 0
 fi
 

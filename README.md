@@ -105,17 +105,22 @@ If the official image is **linux/amd64** only on **Apple Silicon**, add a Compos
 
 ### GCP VM (production)
 
+**Clean install guide:** [docs/VM_QUICKSTART.md](docs/VM_QUICKSTART.md) (wipe, new Telegram bot, Gemini, `SKIP_GOG=1`).
+
 **Prereqs:** Ubuntu 24.04 VM, IAM (Secret Manager accessor on the VM service account if using GSM). Docker installed, or use `INSTALL_HOST_DEPS=1` on first `make init-vm` (sudo). `make` is installed by `setup-server.sh`; without it run `./scripts/init-vm.sh` directly.
 
 ```bash
 git clone https://github.com/<you>/openclaw.git
 cd openclaw
 make init-vm          # step 1: creates .env — edit (USE_GSM_SECRETS=true, GSM_*, …), then make init-vm again
+SKIP_GOG=1 make init-vm   # recommended first boot
 ```
 
-**Typical `.env` on the VM:** `USE_GSM_SECRETS=true`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GSM_TELEGRAM_BOT_TOKEN_SECRET`, and `GSM_GEMINI_API_KEY_SECRET` or `GSM_OPENAI_API_KEY_SECRET` matching `LLM_PROVIDER` (not both).
+**Typical `.env` on the VM:** `USE_GSM_SECRETS=true`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GSM_TELEGRAM_BOT_TOKEN_SECRET`, `GSM_GEMINI_API_KEY_SECRET`, `LLM_PROVIDER=google`. Use a **dedicated VM bot token** (not the same as local Mac).
 
 **What `make init-vm` runs:** optional host Docker install → reown mounts → bootstrap → validate → `fetch-secrets-gsm.sh` → gog (optional) → **production** `docker compose` → Telegram `channels add` → `/healthz`.
+
+**Reset a broken VM:** `make wipe-vm` then edit `.env` and `SKIP_GOG=1 make init-vm` again.
 
 ```bash
 # First boot without Docker yet:
