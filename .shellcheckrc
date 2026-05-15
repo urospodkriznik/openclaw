@@ -1,0 +1,2 @@
+# CI and local runs: fail on warnings/errors, not info (e.g. SC1091 for sourced libs).
+severity=warning
