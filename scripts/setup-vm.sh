@@ -8,7 +8,7 @@
 #   make init-vm
 #   INSTALL_HOST_DEPS=1 make init-vm   # also run setup-server.sh + install-docker.sh (sudo)
 #
-# Env: SKIP_GOG=1 SKIP_TELEGRAM=1 SKIP_PULL=1 SETUP_NO_RECREATE=1 INSTALL_HOST_DEPS=1
+# Env: SKIP_GOG=1 SKIP_GOPLACES=1 SKIP_TELEGRAM=1 SKIP_PULL=1 SETUP_NO_RECREATE=1 INSTALL_HOST_DEPS=1
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -144,13 +144,35 @@ telegram_configured() {
   jq -e '.channels.telegram.enabled == true' "$cfg" >/dev/null 2>&1
 }
 
-detect_gog_arch() {
-  if [[ -n "${GOG_LINUX_ARCH:-}" ]]; then
+detect_linux_bin_arch() {
+  if [[ -n "${GOG_LINUX_ARCH:-}" && -n "${GOPLACES_LINUX_ARCH:-}" ]]; then
     return 0
   fi
   case "$(uname -m)" in
-    arm64 | aarch64) export GOG_LINUX_ARCH=arm64 ;;
-    *) export GOG_LINUX_ARCH=amd64 ;;
+    arm64 | aarch64)
+      : "${GOG_LINUX_ARCH:=arm64}"
+      : "${GOPLACES_LINUX_ARCH:=arm64}"
+      ;;
+    *)
+      : "${GOG_LINUX_ARCH:=amd64}"
+      : "${GOPLACES_LINUX_ARCH:=amd64}"
+      ;;
+  esac
+  export GOG_LINUX_ARCH GOPLACES_LINUX_ARCH
+}
+
+places_wanted() {
+  [[ -n "${GOOGLE_PLACES_API_KEY:-}" ]] || [[ -n "${GSM_GOOGLE_PLACES_API_KEY_SECRET:-}" ]]
+}
+
+maybe_openai_doctor_fix() {
+  case "$(echo "${LLM_PROVIDER:-google}" | tr '[:upper:]' '[:lower:]')" in
+    openai)
+      step "OpenAI: doctor --fix (enables codex plugin for gpt-5.* on recent images)"
+      "${COMPOSE_PROD[@]}" run -T --rm openclaw-cli doctor --fix || {
+        echo "setup-vm: doctor --fix failed — see docs/TROUBLESHOOTING.md (codex not registered)" >&2
+      }
+      ;;
   esac
 }
 
@@ -222,7 +244,7 @@ load_env
 
 if ! truthy "${SKIP_GOG:-0}"; then
   step "Install Linux gog for containers"
-  detect_gog_arch
+  detect_linux_bin_arch
   ./scripts/install-gog-linux-for-docker.sh
   if src="$(host_gogcli_source)"; then
     step "Sync host gogcli from $src"
@@ -232,6 +254,18 @@ if ! truthy "${SKIP_GOG:-0}"; then
   fi
 else
   echo "setup-vm: SKIP_GOG=1"
+fi
+
+if ! truthy "${SKIP_GOPLACES:-0}"; then
+  if places_wanted; then
+    step "Install Linux goplaces for containers"
+    detect_linux_bin_arch
+    ./scripts/install-goplaces-linux-for-docker.sh
+  else
+    echo "setup-vm: no GOOGLE_PLACES_API_KEY / GSM_GOOGLE_PLACES_API_KEY_SECRET — skipping goplaces (optional: make setup-places later)."
+  fi
+else
+  echo "setup-vm: SKIP_GOPLACES=1"
 fi
 
 step "Pull OpenClaw image (production compose)"
@@ -250,6 +284,15 @@ else
 fi
 sleep 15
 ./scripts/push-gogcli-to-gateway.sh || true
+
+maybe_openai_doctor_fix
+
+if ! truthy "${SKIP_GOPLACES:-0}" && places_wanted && [[ -f "${ROOT_DIR}/.openclaw-host-bin/goplaces" ]]; then
+  step "Install goplaces skill (ClawHub)"
+  if ! "${COMPOSE_PROD[@]}" run -T --rm openclaw-cli skills install goplaces; then
+    echo "setup-vm: goplaces skill install failed — retry: make setup-places" >&2
+  fi
+fi
 
 if ! truthy "${SKIP_TELEGRAM:-0}" && [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]]; then
   if telegram_configured; then
@@ -293,6 +336,14 @@ echo "Next:"
 echo "  • Telegram: message your bot (use a dedicated VM bot — not the Mac token); /approve if pairing is required"
 if truthy "${SKIP_GOG:-0}"; then
   echo "  • gog:      gog auth credentials … && gog auth add …  then: make setup-gog"
+fi
+if places_wanted && [[ -f "${ROOT_DIR}/.openclaw-host-bin/goplaces" ]]; then
+  echo "  • Places:   share Telegram location → nearby search; verify: make verify-goplaces"
+elif ! places_wanted; then
+  echo "  • Places:   set GSM_GOOGLE_PLACES_API_KEY_SECRET or GOOGLE_PLACES_API_KEY, then: make setup-places"
+fi
+if [[ "$(echo "${LLM_PROVIDER:-google}" | tr '[:upper:]' '[:lower:]')" == "openai" ]]; then
+  echo "  • OpenAI:   if Telegram shows codex errors, run: make restart && doctor --fix (see TROUBLESHOOTING)"
 fi
 echo "  • Guide:    docs/VM_QUICKSTART.md"
 echo "  • Updates:  make deploy   (git pull + restart on this VM)"

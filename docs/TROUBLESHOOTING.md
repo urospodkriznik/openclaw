@@ -70,6 +70,7 @@ gcloud secrets versions access latest --secret "$GSM_TELEGRAM_BOT_TOKEN_SECRET" 
 # If configured, test optional secrets the same way (replace with your secret names):
 # gcloud secrets versions access latest --secret "$GSM_GEMINI_API_KEY_SECRET" --project "$GSM_PROJECT_ID"
 # gcloud secrets versions access latest --secret "$GSM_GOOGLE_PLACES_API_KEY_SECRET" --project "$GSM_PROJECT_ID"
+# Places: GSM_GOOGLE_PLACES_API_KEY_SECRET must be the GCP secret *id* (e.g. google-places-api-key), not the env var name.
 ./scripts/validate-env.sh
 ./scripts/fetch-secrets-gsm.sh
 ```

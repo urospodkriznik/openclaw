@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Run docker compose with docker-compose.yml plus docker-compose.gog.yml when the
-# host gog binary is available (so openclaw-gateway and openclaw-cli both see /usr/local/bin/gog
-# inside the container). Mount source path is OPENCLAW_GOG_HOST_PATH (exported when auto-detected).
+# Run docker compose with docker-compose.yml plus optional overlays:
+# - docker-compose.gog.yml when a Linux ELF gog binary is found
+# - docker-compose.goplaces.yml when a Linux ELF goplaces binary is found
 # Leading "-f <file>" pairs are forwarded after the baseline files (for dev overrides).
 set -euo pipefail
 
@@ -30,7 +30,7 @@ gog_is_linux_elf() {
   [[ "$magic" == "7f454c46" ]]
 }
 
-pick_gog_host_binary() {
+pick_linux_elf_binary() {
   local p
   for p in "$@"; do
     [[ -n "$p" ]] || continue
@@ -41,6 +41,9 @@ pick_gog_host_binary() {
   done
   return 1
 }
+
+pick_gog_host_binary() { pick_linux_elf_binary "$@"; }
+pick_goplaces_host_binary() { pick_linux_elf_binary "$@"; }
 
 # Resolve host gog binary: explicit OPENCLAW_GOG_HOST_PATH if it is a Linux ELF file; otherwise
 # try .openclaw-host-bin/gog (from install-gog-linux-for-docker.sh), then /usr/local/bin/gog,
@@ -64,10 +67,32 @@ if [[ -z "$GOG_PATH" ]] && { [[ -f "${ROOT_DIR}/.openclaw-host-bin/gog" ]] || [[
   echo "docker-compose.sh: On a Mac: ./scripts/install-gog-linux-for-docker.sh  then re-run compose." >&2
 fi
 
+GOPLACES_PATH=""
+if [[ -n "${OPENCLAW_GOPLACES_HOST_PATH:-}" ]]; then
+  if gog_is_linux_elf "${OPENCLAW_GOPLACES_HOST_PATH}"; then
+    GOPLACES_PATH="${OPENCLAW_GOPLACES_HOST_PATH}"
+  else
+    echo "docker-compose.sh: OPENCLAW_GOPLACES_HOST_PATH is not a Linux ELF binary: ${OPENCLAW_GOPLACES_HOST_PATH}" >&2
+  fi
+else
+  if cand="$(pick_goplaces_host_binary "${ROOT_DIR}/.openclaw-host-bin/goplaces")"; then
+    GOPLACES_PATH="$cand"
+  fi
+fi
+
+if [[ -z "$GOPLACES_PATH" ]] && [[ -f "${ROOT_DIR}/.openclaw-host-bin/goplaces" ]]; then
+  echo "docker-compose.sh: skipping goplaces overlay — no Linux ELF goplaces found." >&2
+  echo "docker-compose.sh: Run ./scripts/install-goplaces-linux-for-docker.sh then re-run compose." >&2
+fi
+
 compose_files=( -f docker-compose.yml )
 if [[ -n "$GOG_PATH" ]]; then
   export OPENCLAW_GOG_HOST_PATH="$GOG_PATH"
   compose_files+=( -f docker-compose.gog.yml )
+fi
+if [[ -n "$GOPLACES_PATH" ]]; then
+  export OPENCLAW_GOPLACES_HOST_PATH="$GOPLACES_PATH"
+  compose_files+=( -f docker-compose.goplaces.yml )
 fi
 
 extra=()

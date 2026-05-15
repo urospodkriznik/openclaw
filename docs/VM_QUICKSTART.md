@@ -12,6 +12,7 @@ One-page path for a **fresh Linux VM** (Gemini + Telegram + optional gog + GitHu
 | 4 | GitHub | Variable `DEPLOY_INSTANCES_JSON` = same JSON one line; secrets `GCP_VM_*`; deploy user SSH key in `authorized_keys` |
 | 5 | VM | `make init-vm` → edit `.env` → `SKIP_GOG=1 INSTALL_HOST_DEPS=1 make init-vm` |
 | 6 | VM | `gog auth …` on host (see below) → **`make setup-gog`** |
+| 6b | VM | Places: GSM secret + **`make setup-places`** (optional) |
 | 7 | Telegram | Message bot → `/approve` if needed → `/new` |
 
 **Mac:** stop local stack if it uses the same Telegram bot.
@@ -45,6 +46,7 @@ GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=europe-southwest1
 GSM_TELEGRAM_BOT_TOKEN_SECRET=telegram-bot-token-vm
 GSM_GEMINI_API_KEY_SECRET=gemini-api-key
+# GSM_GOOGLE_PLACES_API_KEY_SECRET=google-places-api-key
 LLM_PROVIDER=google
 GEMINI_MODEL=gemini-3-flash-preview
 
@@ -84,6 +86,26 @@ That installs Linux `gog`, runs `sync-gog-config`, reowns, recreates the gateway
 
 Manual equivalents: `make install-gog-linux` → `make sync-gog-config` → `make restart` — prefer **`make setup-gog`**.
 
+## 4b. Google Places (goplaces, optional)
+
+**GCP:** enable **Places API (New)** (`places.googleapis.com`) on the same project. Store the API key in Secret Manager; in `.env` set:
+
+```bash
+GSM_GOOGLE_PLACES_API_KEY_SECRET=your-places-secret-id   # e.g. google-places-api-key
+```
+
+**On the VM** (after `init-vm` / `make deploy`):
+
+```bash
+make setup-places
+```
+
+That runs `fetch-secrets-gsm.sh`, installs Linux `goplaces`, recreates the gateway, verifies `GOOGLE_PLACES_API_KEY`, and installs the **goplaces** skill.
+
+**Telegram:** `/new` → share **Location** → ask for nearby restaurants (e.g. vegan, 2 km).
+
+If `fetch-secrets-gsm` warns about Places, fix the GSM secret **id** (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)).
+
 ## 5. Telegram
 
 1. Message the VM bot (`ping`).
@@ -114,8 +136,9 @@ Then repeat from §2.
 |---------|-----|
 | `EACCES` / Missing config | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — `chmod 755 .openclaw-config`, `reown --container` |
 | gog / empty keyring | [GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md), `make setup-gog` |
+| Places / goplaces | `make setup-places`, enable `places.googleapis.com` |
 | Deploy SSH / wrong path | [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md) |
-| `codex not registered` | Use Gemini or latest `bootstrap-config.sh` |
+| `codex not registered` | `openclaw doctor --fix` after stack up (OpenAI gpt-5.*); or Gemini |
 
 ```bash
 ./scripts/diagnose-openclaw-config.sh

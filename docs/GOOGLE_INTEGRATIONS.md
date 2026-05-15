@@ -179,7 +179,10 @@ This repo does **not** mount Drive-specific secrets or enable Drive API by defau
 
 - **API:** [Places API (New)](https://developers.google.com/maps/documentation/places/web-service/overview) — enable on `GOOGLE_CLOUD_PROJECT`, create an API key (restrict to Places API).
 - **Auth:** **`GOOGLE_PLACES_API_KEY`** in `.env`, or **`GSM_GOOGLE_PLACES_API_KEY_SECRET`** + **`./scripts/fetch-secrets-gsm.sh`** → **`.env.generated`** (secret payload = the API key string only).
-- **Skill:** install **[goplaces](https://clawhub.ai/steipete/goplaces)** (`openclaw skills install goplaces`) and mount the Linux **`goplaces`** binary into the gateway (same pattern as **`gog`**). **`GOOGLE_PLACES_API_KEY`** is optional: empty = Telegram/gog still work; filled (`.env` or `.env.generated`) = Places search works.
+- **Skill:** install **[goplaces](https://clawhub.ai/steipete/goplaces)** (`openclaw skills install goplaces`) and mount the Linux **`goplaces`** binary into the gateway (same pattern as **`gog`**).
+- **Local Docker:** `make install-goplaces-linux` → set **`GOOGLE_PLACES_API_KEY`** in **`.env`** → `make restart-dev` → `make verify-goplaces` → `skills install goplaces`.
+- **GCP VM:** **`GSM_GOOGLE_PLACES_API_KEY_SECRET=<secret-id>`** in **`.env`** → **`make setup-places`** (or **`SKIP_GOPLACES=0`** on **`make init-vm`** when the secret is configured). **`make deploy`** auto-installs the Linux binary when the key is present after **`fetch-secrets-gsm.sh`**.
+- **`GOOGLE_PLACES_API_KEY`** is optional: empty = Telegram/gog still work; filled (`.env` or `.env.generated`) = Places search works.
 - **Optional everywhere:** omit **`GSM_GOOGLE_PLACES_API_KEY_SECRET`** and leave **`GOOGLE_PLACES_API_KEY`** empty — `validate-env` and `fetch-secrets-gsm.sh` do not require Places (same as optional Gemini GSM).
 - **Telegram location:** share a location pin; OpenClaw exposes `LocationLat` / `LocationLon` — see [Channel location parsing](https://docs.openclaw.ai/channels/location).
 - **Not via gog:** Workspace OAuth does not replace a Places API key.

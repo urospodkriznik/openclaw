@@ -59,17 +59,15 @@ resolve_primary_model() {
 
 PRIMARY_MODEL="$(resolve_primary_model)"
 
-# openai/gpt-* defaults to Codex harness on recent images; prebuilt Docker often has no codex plugin.
-apply_openai_pi_runtime() {
+# openai/gpt-* on recent images routes via Codex unless models.providers.openai is complete.
+# A bare models.providers.openai.agentRuntime object crashes the gateway (missing baseUrl/models).
+# Use `openclaw doctor --fix` after the stack is healthy — see docs/TROUBLESHOOTING.md.
+openai_post_bootstrap_hint() {
   [[ "$PRIMARY_MODEL" == openai/* ]] || return 0
-  local tmp="${OPENCLAW_JSON}.tmp"
-  jq '
-    .models //= {}
-    | .models.providers //= {}
-    | .models.providers.openai //= {}
-    | .models.providers.openai.agentRuntime = { "id": "pi" }
-  ' "$OPENCLAW_JSON" >"$tmp"
-  mv "$tmp" "$OPENCLAW_JSON"
+  echo "OpenAI: if Telegram shows 'codex is not registered', run (stack must be up):"
+  echo "  ./scripts/docker-compose.sh run -T --rm openclaw-cli doctor --fix"
+  echo "  make restart-dev"
+  echo "  Then /new in Telegram. Or set OPENAI_MODEL=gpt-4.1-mini and re-run bootstrap."
 }
 
 # Host .env token for compose interpolation
@@ -214,16 +212,15 @@ write_openclaw_json() {
 }
 
 write_openclaw_json
-apply_openai_pi_runtime
 
 echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL)"
+openai_post_bootstrap_hint
 if truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}" && ! truthy "${FULL_AUTONOMY:-false}"; then
   echo "Headless exec: tools.exec + exec-approvals use security=full ask=off (no Control UI). Gmail/Calendar/Drive need skills + OAuth per docs/GOOGLE_INTEGRATIONS.md."
 fi
 echo "Next (local): make init   — or manually: channels add + make restart-dev (see README)"
 case "$(llm_provider_lc)" in
   openai)
-    echo "OpenAI: agents use PI runtime (direct API) unless you remove models.providers.openai.agentRuntime."
     echo "OpenAI: set OPENAI_API_KEY in .env. Verify: ./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider openai"
     ;;
   *)

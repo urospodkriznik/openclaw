@@ -1,0 +1,11 @@
+# Optional overlay: bind-mount a **Linux ELF** host goplaces into gateway + CLI. Loaded when
+# scripts/docker-compose.sh finds such a binary (OPENCLAW_GOPLACES_HOST_PATH, or .openclaw-host-bin/goplaces
+# from install-goplaces-linux-for-docker.sh). See docs/GOOGLE_INTEGRATIONS.md.
+
+services:
+  openclaw-gateway:
+    volumes:
+      - ${OPENCLAW_GOPLACES_HOST_PATH:-/usr/local/bin/goplaces}:/usr/local/bin/goplaces:ro
+  openclaw-cli:
+    volumes:
+      - ${OPENCLAW_GOPLACES_HOST_PATH:-/usr/local/bin/goplaces}:/usr/local/bin/goplaces:ro

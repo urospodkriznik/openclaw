@@ -32,6 +32,25 @@ export VALIDATION_LEVEL="${VALIDATION_LEVEL:-full}"
 ./scripts/align-gmail-watcher-env.sh
 ./scripts/validate-env.sh
 ./scripts/fetch-secrets-gsm.sh
+
+# Optional Places: install Linux goplaces when configured (GSM or .env key after fetch).
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source .env
+  set +a
+fi
+if [[ -f .env.generated ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source .env.generated
+  set +a
+fi
+if [[ -n "${GOOGLE_PLACES_API_KEY:-}" ]] && [[ ! -f "${ROOT_DIR}/.openclaw-host-bin/goplaces" ]]; then
+  echo "remote-deploy: installing goplaces (GOOGLE_PLACES_API_KEY set)"
+  ./scripts/install-goplaces-linux-for-docker.sh
+fi
+
 ./scripts/reown-openclaw-mounts.sh --container
 
 ./scripts/docker-compose.sh pull

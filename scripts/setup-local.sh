@@ -11,6 +11,7 @@
 #
 # Env overrides:
 #   SKIP_GOG=1              Skip Linux gog download + sync/push
+#   SKIP_GOPLACES=1         Skip Linux goplaces download + skill install
 #   SKIP_TELEGRAM=1         Skip `channels add`
 #   SKIP_PULL=1             Skip `docker compose pull`
 #   SETUP_NO_RECREATE=1   Use `up -d` instead of `--force-recreate`
@@ -104,14 +105,25 @@ telegram_configured() {
   jq -e '.channels.telegram.enabled == true' "$cfg" >/dev/null 2>&1
 }
 
-detect_gog_arch() {
-  if [[ -n "${GOG_LINUX_ARCH:-}" ]]; then
+detect_linux_bin_arch() {
+  if [[ -n "${GOG_LINUX_ARCH:-}" && -n "${GOPLACES_LINUX_ARCH:-}" ]]; then
     return 0
   fi
   case "$(uname -m)" in
-    arm64 | aarch64) export GOG_LINUX_ARCH=arm64 ;;
-    *) export GOG_LINUX_ARCH=amd64 ;;
+    arm64 | aarch64)
+      : "${GOG_LINUX_ARCH:=arm64}"
+      : "${GOPLACES_LINUX_ARCH:=arm64}"
+      ;;
+    *)
+      : "${GOG_LINUX_ARCH:=amd64}"
+      : "${GOPLACES_LINUX_ARCH:=amd64}"
+      ;;
   esac
+  export GOG_LINUX_ARCH GOPLACES_LINUX_ARCH
+}
+
+places_enabled() {
+  [[ -n "${GOOGLE_PLACES_API_KEY:-}" ]]
 }
 
 # --- main ---
@@ -134,7 +146,7 @@ step "Validate .env"
 
 if ! truthy "${SKIP_GOG:-0}"; then
   step "Install Linux ELF gog for Docker ($(uname -m) host → GOG_LINUX_ARCH=${GOG_LINUX_ARCH:-auto})"
-  detect_gog_arch
+  detect_linux_bin_arch
   ./scripts/install-gog-linux-for-docker.sh
 
   if src="$(host_gogcli_source)"; then
@@ -145,6 +157,18 @@ if ! truthy "${SKIP_GOG:-0}"; then
   fi
 else
   echo "setup-local: SKIP_GOG=1 — skipping gog install/sync."
+fi
+
+if ! truthy "${SKIP_GOPLACES:-0}"; then
+  if places_enabled; then
+    step "Install Linux ELF goplaces for Docker (GOPLACES_LINUX_ARCH=${GOPLACES_LINUX_ARCH:-auto})"
+    detect_linux_bin_arch
+    ./scripts/install-goplaces-linux-for-docker.sh
+  else
+    echo "setup-local: GOOGLE_PLACES_API_KEY empty — skipping goplaces (set key in .env, then make install-goplaces-linux && make restart-dev)."
+  fi
+else
+  echo "setup-local: SKIP_GOPLACES=1 — skipping goplaces install."
 fi
 
 step "Pull OpenClaw image (skip with SKIP_PULL=1)"
@@ -177,6 +201,14 @@ else
   echo "setup-local: SKIP_TELEGRAM=1 or no TELEGRAM_BOT_TOKEN — skipping channels add."
 fi
 
+if places_enabled && ! truthy "${SKIP_GOPLACES:-0}" && [[ -f "${ROOT_DIR}/.openclaw-host-bin/goplaces" ]]; then
+  step "Install goplaces skill (ClawHub)"
+  if ! "${COMPOSE_DEV[@]}" run -T --rm openclaw-cli skills install goplaces; then
+    echo "setup-local: goplaces skill install failed — retry after stack is up:" >&2
+    echo "  ${COMPOSE_DEV[*]} run -T --rm openclaw-cli skills install goplaces" >&2
+  fi
+fi
+
 step "Health check"
 ./scripts/healthcheck.sh
 
@@ -192,4 +224,8 @@ if ! host_gogcli_source >/dev/null 2>&1 && ! truthy "${SKIP_GOG:-0}"; then
 fi
 if ! truthy "${SKIP_GOG:-0}"; then
   echo "  • Verify gog in container: make verify-gog"
+fi
+if places_enabled && ! truthy "${SKIP_GOPLACES:-0}"; then
+  echo "  • Places: share Telegram location, then ask for nearby vegan restaurants"
+  echo "  • Verify goplaces: make verify-goplaces"
 fi
