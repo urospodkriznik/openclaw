@@ -8,7 +8,7 @@
 #   ./scripts/wipe-vm-state.sh --full
 #
 # If removal fails (UID 1000 owned files), run as a sudo user:
-#   sudo bash -c 'cd /path/to/oc_uros && ./scripts/wipe-vm-state.sh'
+#   sudo bash -c 'cd /path/to/openclaw-primary && ./scripts/wipe-vm-state.sh'
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -91,7 +91,7 @@ remove_state_paths() {
 
   echo "" >&2
   echo "wipe-vm-state: cannot delete bind-mount data as $(id -un)." >&2
-  echo "Ask an admin (e.g. urospodkriznik) to run:" >&2
+  echo "Ask an admin user with sudo to run:" >&2
   echo "  sudo bash -c 'cd $ROOT_DIR && ./scripts/wipe-vm-state.sh ${EXTRA_ARGS[*]}'" >&2
   exit 1
 }

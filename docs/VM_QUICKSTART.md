@@ -14,7 +14,7 @@ Use this for a **fresh VM** or after wiping a broken install. Goal: **one deploy
 
 ## 1. Wipe old state (on the VM)
 
-From the repo root (e.g. `~/oc_uros` or `~/openclaw`):
+From the repo root (e.g. `~/openclaw-primary` or `~/openclaw`):
 
 ```bash
 make wipe-vm
@@ -27,10 +27,10 @@ Keeps `.env` so you can edit GSM names and provider. To delete `.env` too: `./sc
 If you see **`Permission denied`** removing `.openclaw-config` (files owned by Docker UID **1000**), run wipe as an admin:
 
 ```bash
-sudo bash -c 'cd /home/g8ot_4gent_5mith/oc_uros && ./scripts/wipe-vm-state.sh'
+sudo bash -c 'cd /home/deployuser/openclaw-primary && ./scripts/wipe-vm-state.sh'
 ```
 
-(`g8ot` often cannot `sudo`; use **`urospodkriznik`** or another sudo user.)
+(If the deploy user cannot `sudo`, use an admin account with sudo.)
 
 ## 2. Update secrets in GCP (new bot)
 

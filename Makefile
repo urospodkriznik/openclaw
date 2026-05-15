@@ -5,7 +5,7 @@ COMPOSE ?= ./scripts/docker-compose.sh
 COMPOSE_FILES :=
 DEV_FILES := -f docker-compose.dev.yml
 
-.PHONY: setup init init-vm setup-local setup-vm wipe-vm dev local up down restart restart-dev restart-local logs health deploy rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
+.PHONY: setup init init-vm setup-local setup-vm wipe-vm dev local up down restart restart-dev restart-local logs health deploy deploy-all deploy-instances-init rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
 
 # GCP VM base packages (sudo). For local Docker workstation use: make init
 setup:
@@ -68,6 +68,19 @@ health:
 
 deploy:
 	@./scripts/deploy.sh
+
+# On the VM: deploy every path in deploy/instances.json (see docs/GITHUB_ACTIONS.md).
+deploy-all:
+	@./scripts/deploy-all.sh
+
+# Create gitignored deploy/instances.json from the example (once per clone).
+deploy-instances-init:
+	@if [[ -f deploy/instances.json ]]; then \
+	  echo "deploy/instances.json already exists"; \
+	else \
+	  cp deploy/instances.example.json deploy/instances.json && \
+	  echo "Created deploy/instances.json — edit path/id, then commit is not needed (gitignored)."; \
+	fi
 
 rollback:
 	@./scripts/rollback.sh

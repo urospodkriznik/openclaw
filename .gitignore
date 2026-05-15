@@ -55,6 +55,9 @@ Thumbs.db
 .idea/
 .vscode/
 
+# --- Deploy manifest (copy deploy/instances.example.json → deploy/instances.json) ---
+deploy/instances.json
+
 # --- Backups / deploy / logs ---
 backups/
 *.tar.gz

@@ -14,21 +14,8 @@ git pull --ff-only
 
 NEW_HEAD="$(git rev-parse HEAD)"
 
-./scripts/reown-openclaw-mounts.sh --host
-./scripts/bootstrap-config.sh
-./scripts/align-gmail-watcher-env.sh
-./scripts/validate-env.sh
-./scripts/fetch-secrets-gsm.sh
-./scripts/reown-openclaw-mounts.sh --container
+./scripts/remote-deploy.sh
 
-./scripts/docker-compose.sh pull
-./scripts/docker-compose.sh up -d
-
-if ./scripts/healthcheck.sh; then
-  echo "$OLD_HEAD" >"${STATE_DIR}/previous-sha"
-  echo "$NEW_HEAD" >"${STATE_DIR}/current-sha"
-  echo "deploy: success at $NEW_HEAD"
-else
-  echo "deploy: healthcheck failed after upgrade" >&2
-  exit 1
-fi
+echo "$OLD_HEAD" >"${STATE_DIR}/previous-sha"
+echo "$NEW_HEAD" >"${STATE_DIR}/current-sha"
+echo "deploy: success at $NEW_HEAD"

@@ -10,8 +10,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      instances: ${{ steps.matrix.outputs.instances }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load deploy instances
+        id: matrix
+        env:
+          DEPLOY_INSTANCES_JSON: ${{ vars.DEPLOY_INSTANCES_JSON }}
+        run: |
+          set -euo pipefail
+          MANIFEST=""
+          if [[ -n "${DEPLOY_INSTANCES_JSON:-}" ]]; then
+            printf '%s' "$DEPLOY_INSTANCES_JSON" > /tmp/deploy-instances.json
+            MANIFEST=/tmp/deploy-instances.json
+            echo "Using DEPLOY_INSTANCES_JSON repository variable"
+          elif [[ -f deploy/instances.json ]]; then
+            MANIFEST=deploy/instances.json
+            echo "Using deploy/instances.json"
+          elif [[ -f deploy/instances.example.json ]]; then
+            MANIFEST=deploy/instances.example.json
+            echo "Using deploy/instances.example.json (default ~/openclaw)"
+          else
+            echo "No deploy manifest found" >&2
+            exit 1
+          fi
+          jq -e '.instances | type == "array" and length > 0' "$MANIFEST" >/dev/null
+          echo "instances=$(jq -c '.instances' "$MANIFEST")" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        instance: ${{ fromJson(needs.prepare.outputs.instances) }}
     env:
       GCP_VM_PORT_SECRET: ${{ secrets.GCP_VM_PORT }}
     steps:
@@ -22,7 +57,7 @@ jobs:
           if [[ -z "$p" ]]; then p=22; fi
           echo "port=$p" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy over SSH
+      - name: Deploy ${{ matrix.instance.id }} (${{ matrix.instance.path }})
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.GCP_VM_HOST }}
@@ -32,7 +67,9 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            DEPLOY_PATH="${DEPLOY_PATH:-$HOME/openclaw}"
+            INSTANCE_ID="${{ matrix.instance.id }}"
+            DEPLOY_PATH="$HOME/${{ matrix.instance.path }}"
+            echo "Deploy instance=$INSTANCE_ID path=$DEPLOY_PATH"
             if [[ ! -d "$DEPLOY_PATH/.git" ]]; then
               echo "Clone this repo to $DEPLOY_PATH on the VM first (see docs/GITHUB_ACTIONS.md)."
               exit 1
@@ -46,26 +83,12 @@ jobs:
               git checkout master
               git pull --ff-only origin master
             else
-              echo "No origin/main or origin/master; set a default branch on GitHub or clone with an explicit branch." >&2
+              echo "No origin/main or origin/master; set a default branch on GitHub." >&2
               exit 1
             fi
-            # Production defaults: runtime secrets come from GSM via VM IAM.
             touch .env
             grep -v '^USE_GSM_SECRETS=' .env > .env.tmp || true
             mv .env.tmp .env
             echo 'USE_GSM_SECRETS=true' >> .env
-            export VALIDATION_LEVEL=full
-            ./scripts/reown-openclaw-mounts.sh --host
-            ./scripts/bootstrap-config.sh
-            ./scripts/align-gmail-watcher-env.sh
-            ./scripts/validate-env.sh
-            ./scripts/fetch-secrets-gsm.sh
-            ./scripts/reown-openclaw-mounts.sh --container
-            ./scripts/docker-compose.sh pull
-            ./scripts/docker-compose.sh up -d
-            if ! ./scripts/healthcheck.sh; then
-              echo "Healthcheck failed — recent logs:" >&2
-              ./scripts/docker-compose.sh logs --tail=120 openclaw-gateway >&2 || true
-              exit 1
-            fi
-            echo "Deploy OK"
+            ./scripts/remote-deploy.sh "$INSTANCE_ID"
+            echo "Deploy OK: $INSTANCE_ID"

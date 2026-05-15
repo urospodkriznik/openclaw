@@ -5,76 +5,102 @@
 | File | When | What |
 |------|------|------|
 | [.github/workflows/ci.yml](../.github/workflows/ci.yml) | PR + push | ShellCheck, compose config, required files, secret-pattern scan |
-| [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) | Push to `main` or `master` + manual | SSH deploy to your VM (pulls whichever branch exists on `origin`) |
+| [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) | Push to `main` or `master` + manual | SSH deploy using the instances manifest (see below) |
 
-## One-time VM preparation
+## Deploy manifest (default + your override)
 
-1. Clone **this** repository on the VM (same path you will use in deploy):
+| File | In git? | Purpose |
+|------|---------|---------|
+| [deploy/instances.example.json](../deploy/instances.example.json) | Yes | Default: one agent at **`~/openclaw`** |
+| `deploy/instances.json` | **No** (gitignored) | Your real folder names and extra instances |
 
-   ```bash
-   mkdir -p ~/openclaw && cd ~/openclaw
-   git clone https://github.com/<you>/<repo>.git .
-   ```
+### Local / VM setup
 
-2. Attach a VM service account with IAM:
-   - `roles/secretmanager.secretAccessor` (GSM)
-   - `roles/aiplatform.user` (optional — only if you use Vertex / `google-vertex`)
+```bash
+make deploy-instances-init   # copies example → instances.json once
+# edit deploy/instances.json — set "path" to your clone directory name under $HOME
+```
 
-3. **Deploy user + `sudo`:** the deploy workflow runs **`./scripts/reown-openclaw-mounts.sh`** so the SSH user can refresh **`.openclaw-config`** after Docker has created files as **UID 1000**, then hands ownership back to **1000:1000** before **`docker compose up`**. Configure **passwordless** `sudo` for the **`chown`** binary that exists on the VM (path must match what `command -v chown` prints — often **`/usr/bin/chown`** on Ubuntu):
+Copy the same `deploy/instances.json` into your VM clone(s) for `make deploy-all`.
 
-   ```text
-   yourdeployuser ALL=(ALL) NOPASSWD: /usr/bin/chown
-   ```
+Details: [deploy/README.md](../deploy/README.md).
 
-   On some images `chown` is **`/bin/chown`**; if `sudo -n "$(command -v chown)" --help` still fails after editing sudoers, add that path too (comma-separated in `NOPASSWD`).
+### What GitHub Actions uses
 
-   See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if bootstrap fails with **Permission denied** on **`.openclaw-config/.env`**.
+On each push, the workflow picks the manifest in this order:
 
-4. Create a starter `.env` on the VM with non-secret defaults (paths, image, autonomy flags), and set:
-   - `USE_GSM_SECRETS=true`
-   - `GSM_PROJECT_ID=<your-project>` (optional if equal to `GOOGLE_CLOUD_PROJECT`)
-   - `GSM_TELEGRAM_BOT_TOKEN_SECRET=<secret-name>`
-   - `GSM_OPENAI_API_KEY_SECRET=<optional-secret-name>`
-   - `GSM_GEMINI_API_KEY_SECRET=<optional-secret-name>` (Gemini developer API key for provider `google`)
-   - `GEMINI_MODEL` (defaults in `.env.example`; override if needed)
-   - For local keys instead of GSM: `GEMINI_API_KEY` in `.env` (never commit)
+1. Repository variable **`DEPLOY_INSTANCES_JSON`** (optional) — same JSON as your local `instances.json`, as a single line
+2. `deploy/instances.json` if it exists in the checkout (unusual; file is gitignored by default)
+3. **`deploy/instances.example.json`** → deploys **`~/openclaw`**
+
+**Single agent, default path:** clone to `~/openclaw`, push to `main` — nothing else required.
+
+**Custom clone folder** (e.g. `~/my-stack`): either
+
+- Set **Settings → Secrets and variables → Actions → Variables** → `DEPLOY_INSTANCES_JSON` = `{"instances":[{"id":"primary","path":"my-stack"}]}`, or  
+- Symlink: `ln -sfn ~/my-stack ~/openclaw` and keep the default example manifest.
+
+## Multi-instance deploy (two agents on one VM)
+
+One push can update **multiple clones**. Each agent needs its own folder, `.env`, Telegram bot, GSM secrets, and **unique host ports**.
+
+Add entries in your **gitignored** `deploy/instances.json` (start from the example):
+
+```json
+{
+  "instances": [
+    { "id": "primary", "path": "openclaw" },
+    { "id": "secondary", "path": "openclaw-secondary" }
+  ]
+}
+```
+
+Mirror that JSON in **`DEPLOY_INSTANCES_JSON`** for CI, or CI will only deploy paths listed in the example file.
+
+The workflow runs a **matrix job** per instance (`fail-fast: false`).
+
+### Per-instance setup on the VM
+
+Repeat **once per agent**:
+
+1. Clone: `mkdir -p ~/openclaw-secondary && cd ~/openclaw-secondary && git clone … .`
+2. Unique `.env` (ports, `GSM_*` secret names, optional gog vars)
+3. `make init-vm` in that directory
+4. Add the entry to `deploy/instances.json` and update `DEPLOY_INSTANCES_JSON` if you use it
+
+### Manual deploy all instances on the VM
+
+```bash
+cd ~/openclaw
+make deploy-all
+```
+
+## One-time VM preparation (shared)
+
+1. At least one clone (default **`~/openclaw`**, or your path in `instances.json`).
+
+2. VM service account IAM: `roles/secretmanager.secretAccessor` (+ optional `roles/aiplatform.user`).
+
+3. **Deploy user + `sudo`:** passwordless `sudo` for `chown` (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)).
+
+4. Per-clone `.env` with `USE_GSM_SECRETS=true`, `GSM_PROJECT_ID`, `GSM_TELEGRAM_BOT_TOKEN_SECRET`, etc.
 
 ## Secrets
 
-Create the following in **GitHub → Settings → Secrets and variables → Actions**:
+| Secret / variable | Notes |
+|-------------------|--------|
+| `GCP_VM_HOST` | VM IP or hostname |
+| `GCP_VM_USER` | SSH user; must own every `path` in the manifest |
+| `GCP_VM_SSH_KEY` | Private SSH key |
+| `GCP_VM_PORT` | Optional; default **22** |
+| `DEPLOY_INSTANCES_JSON` | Optional **variable** — overrides example for custom paths / multi-instance |
 
-| Secret | Notes |
-|--------|------|
-| `GCP_VM_HOST` | External IP or hostname |
-| `GCP_VM_USER` | e.g. `ubuntu` |
-| `GCP_VM_SSH_KEY` | **Private** half of an SSH key pair |
-| `GCP_VM_PORT` | Optional; if unset, workflow uses **22** |
+## What deploy does (per instance)
 
-**Deploy key must match the VM user:** the **public** half of `GCP_VM_SSH_KEY` must appear in **`~GCP_VM_USER/.ssh/authorized_keys`**. The VM login that works with **`google_compute_engine`** or another personal key is unrelated unless you add that key’s **`.pub`** to the deploy user—or store the **private** half of your chosen deploy pair in `GCP_VM_SSH_KEY`.
-
-**Do not commit `.env`:** it is gitignored for a reason (tokens, `GOG_KEYRING_PASSWORD`, etc.). If it was committed, rotate secrets and remove the file from git history; see [TROUBLESHOOTING.md](TROUBLESHOOTING.md) deploy SSH section.
-
-## Deploy path
-
-The remote script defaults to:
-
-```bash
-DEPLOY_PATH="${DEPLOY_PATH:-$HOME/openclaw}"
-```
-
-To use another directory (e.g. `/opt/openclaw`), log in once and `export DEPLOY_PATH=/opt/openclaw` in the server user’s `~/.profile`, **or** edit the default in [.github/workflows/deploy.yml](../.github/workflows/deploy.yml).
-
-## What deploy does
-
-1. `git fetch` + fast-forward `main`.
-2. Ensures `USE_GSM_SECRETS=true` in `.env` (production default).
-3. **`./scripts/reown-openclaw-mounts.sh --host`** (so bootstrap can write bind-mounted config).
-4. `./scripts/bootstrap-config.sh`, `./scripts/align-gmail-watcher-env.sh` (if `ENABLE_GMAIL_HOOKS=true`, forces `OPENCLAW_SKIP_GMAIL_WATCHER=0`), then `./scripts/validate-env.sh`.
-5. `./scripts/fetch-secrets-gsm.sh` to generate `.env.generated` from Secret Manager.
-6. **`./scripts/reown-openclaw-mounts.sh --container`** (restore **UID 1000** ownership for the gateway image).
-7. `./scripts/docker-compose.sh pull && ./scripts/docker-compose.sh up -d`.
-8. `./scripts/healthcheck.sh`; on failure prints recent logs.
+1. `git pull` on the target clone.
+2. Ensures `USE_GSM_SECRETS=true` in `.env`.
+3. `./scripts/remote-deploy.sh` (reown, bootstrap, GSM fetch, compose up, healthcheck).
 
 ## Branch protection
 
-Enable required status checks for `ci` on PRs before merging to `main`.
+Require `ci` on PRs before merging to `main`.

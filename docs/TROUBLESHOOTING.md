@@ -266,8 +266,8 @@ After **`/healthz` OK**, re-apply Codex/PI changes with **`jq`** (not **`nano`**
 **`chmod 755 .openclaw-config` alone is not enough for a running gateway.** The container must also **write** under **`logs/`**, **`credentials/`**, etc. If logs show **`EACCES`** on **`/home/node/.openclaw/logs/...`** or **`credentials/oauth.json`**, re-own the whole tree to UID **1000** (deploy user cannot `sudo` — use an admin account):
 
 ```bash
-# as urospodkriznik (or any user with sudo), full path to the clone:
-sudo bash -c 'cd /home/g8ot_4gent_5mith/oc_uros && ./scripts/reown-openclaw-mounts.sh --container'
+# as any user with sudo, full path to the clone:
+sudo bash -c 'cd /home/deployuser/openclaw-primary && ./scripts/reown-openclaw-mounts.sh --container'
 ```
 
 Then as the deploy user: **`./scripts/docker-compose.sh up -d --force-recreate`** and **`./scripts/healthcheck.sh`**.

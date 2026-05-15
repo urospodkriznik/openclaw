@@ -1,0 +1,9 @@
+{
+  "instances": [
+    {
+      "id": "default",
+      "path": "openclaw",
+      "comment": "Single-agent default: clone this repo to ~/openclaw on the VM. Copy to deploy/instances.json to customize (that file is gitignored)."
+    }
+  ]
+}
