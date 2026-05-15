@@ -52,12 +52,12 @@ if truthy "${DEMO_MODE:-false}"; then
   fi
 fi
 
-: "${GOOGLE_CLOUD_PROJECT:?Set GOOGLE_CLOUD_PROJECT in .env}"
-: "${GOOGLE_CLOUD_LOCATION:?Set GOOGLE_CLOUD_LOCATION in .env}"
 : "${GEMINI_MODEL:=gemini-3-flash-preview}"
 : "${OPENAI_MODEL:=gpt-4.1-mini}"
 
 if [[ "${VALIDATION_LEVEL:-full}" == "full" ]]; then
+  : "${GOOGLE_CLOUD_PROJECT:?Set GOOGLE_CLOUD_PROJECT in .env}"
+  : "${GOOGLE_CLOUD_LOCATION:?Set GOOGLE_CLOUD_LOCATION in .env}"
   case "$(llm_provider_lc)" in
     openai)
       if [[ -z "${OPENAI_API_KEY:-}" ]] && ! truthy "${USE_GSM_SECRETS:-false}"; then
@@ -94,4 +94,8 @@ if truthy "${USE_GSM_SECRETS:-false}"; then
   : "${GSM_TELEGRAM_BOT_TOKEN_SECRET:?Set GSM_TELEGRAM_BOT_TOKEN_SECRET when USE_GSM_SECRETS=true}"
 fi
 
-echo "validate-env: OK (GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION LLM_PROVIDER=${LLM_PROVIDER:-google} gemini_model=$GEMINI_MODEL openai_model=$OPENAI_MODEL)"
+if [[ "${VALIDATION_LEVEL:-full}" == "full" ]]; then
+  echo "validate-env: OK (GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION LLM_PROVIDER=${LLM_PROVIDER:-google} gemini_model=$GEMINI_MODEL openai_model=$OPENAI_MODEL)"
+else
+  echo "validate-env: OK (minimal; LLM_PROVIDER=${LLM_PROVIDER:-google} gemini_model=$GEMINI_MODEL openai_model=$OPENAI_MODEL)"
+fi
