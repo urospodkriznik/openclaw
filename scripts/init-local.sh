@@ -49,10 +49,23 @@ print_missing_banner() {
   cat <<'EOF'
 
 ┌──────────────────────────────────────────────────────────────┐
-│  OpenClaw local setup — waiting for .env                     │
+│  OpenClaw local setup — finish .env, then run make init again │
 └──────────────────────────────────────────────────────────────┘
 
 EOF
+  if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+    collect_missing_env_vars local
+    if ((${#MISSING_ENV_VARS[@]} > 0)); then
+      echo "Still need values in .env:"
+      printf '  • %s\n' "${MISSING_ENV_VARS[@]}"
+      echo ""
+      echo "Then run: make init"
+    fi
+  fi
 }
 
 if [[ ! -f "$ENV_FILE" ]]; then

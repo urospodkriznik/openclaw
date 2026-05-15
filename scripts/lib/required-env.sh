@@ -15,8 +15,12 @@ llm_provider_lc() {
 env_placeholder_or_empty() {
   local v="${1:-}"
   [[ -z "$v" ]] && return 0
+  # Exact placeholders from .env.example only (do not use your-* — it false-positives on your-gcp-project-id).
   case "$v" in
-    changeme | CHANGE_ME | your-* | YOUR_* | placeholder*) return 0 ;;
+    changeme | CHANGE_ME | REPLACE_ME | your-gcp-project-id | placeholder-for-ci) return 0 ;;
+  esac
+  case "$v" in
+    placeholder* | YOUR_* | CHANGE_ME_*) return 0 ;;
   esac
   return 1
 }
