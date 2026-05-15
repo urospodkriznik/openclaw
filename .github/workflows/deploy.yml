@@ -19,14 +19,24 @@ jobs:
       - name: Load deploy instances
         id: matrix
         env:
-          DEPLOY_INSTANCES_JSON: ${{ vars.DEPLOY_INSTANCES_JSON }}
+          DEPLOY_INSTANCES_JSON_VAR: ${{ vars.DEPLOY_INSTANCES_JSON }}
+          DEPLOY_INSTANCES_JSON_SECRET: ${{ secrets.DEPLOY_INSTANCES_JSON }}
         run: |
           set -euo pipefail
           MANIFEST=""
-          if [[ -n "${DEPLOY_INSTANCES_JSON:-}" ]]; then
+          DEPLOY_INSTANCES_JSON="${DEPLOY_INSTANCES_JSON_VAR:-}"
+          MANIFEST_SOURCE=""
+          if [[ -n "$DEPLOY_INSTANCES_JSON" ]]; then
+            MANIFEST_SOURCE="repository variable DEPLOY_INSTANCES_JSON"
+          elif [[ -n "${DEPLOY_INSTANCES_JSON_SECRET:-}" ]]; then
+            DEPLOY_INSTANCES_JSON="$DEPLOY_INSTANCES_JSON_SECRET"
+            MANIFEST_SOURCE="repository secret DEPLOY_INSTANCES_JSON"
+          fi
+          if [[ -n "$DEPLOY_INSTANCES_JSON" ]]; then
             printf '%s' "$DEPLOY_INSTANCES_JSON" > /tmp/deploy-instances.json
             MANIFEST=/tmp/deploy-instances.json
-            echo "Using DEPLOY_INSTANCES_JSON repository variable"
+            echo "Using $MANIFEST_SOURCE"
+            jq -r '.instances[] | "  - id=\(.id) path=\(.path)"' "$MANIFEST"
           elif [[ -f deploy/instances.json ]]; then
             MANIFEST=deploy/instances.json
             echo "Using deploy/instances.json"

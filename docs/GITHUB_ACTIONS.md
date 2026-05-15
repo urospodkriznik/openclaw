@@ -93,7 +93,7 @@ make deploy-all
 | `GCP_VM_USER` | SSH user; must own every `path` in the manifest |
 | `GCP_VM_SSH_KEY` | Private SSH key |
 | `GCP_VM_PORT` | Optional; default **22** |
-| `DEPLOY_INSTANCES_JSON` | Optional **variable** — overrides example for custom paths / multi-instance |
+| `DEPLOY_INSTANCES_JSON` | Optional **variable** (preferred) or **secret** — same JSON as local `deploy/instances.json`; must be on the **same repo** that runs the workflow (one line, no line breaks) |
 
 ## What deploy does (per instance)
 

@@ -22,9 +22,11 @@ cp deploy/instances.example.json deploy/instances.json
 
 The workflow does **not** commit `instances.json`. It uses, in order:
 
-1. Repository variable **`DEPLOY_INSTANCES_JSON`** (optional — same JSON as your local `instances.json`, one line)
-2. `deploy/instances.json` if present in the checkout (e.g. you force-added it on a private fork)
+1. Repository **variable** **`DEPLOY_INSTANCES_JSON`** (preferred) or **secret** with the same name — one line, same JSON as your local `instances.json`
+2. `deploy/instances.json` if present in the checkout (unusual; gitignored by default)
 3. `deploy/instances.example.json` → deploys `~/openclaw`
+
+**If deploy still targets `~/openclaw`:** open the workflow run → **prepare** job → **Load deploy instances**. It must log `Using repository variable DEPLOY_INSTANCES_JSON` and `path=oc_uros`. If it says `instances.example.json`, the variable is missing on **that** GitHub repo (e.g. `openclaw/openclaw` vs your local folder name) or was added under Secrets without the workflow reading it (this repo checks both).
 
 For a custom folder (e.g. `my-stack`) without renaming the clone, set **Settings → Secrets and variables → Actions → Variables**:
 
