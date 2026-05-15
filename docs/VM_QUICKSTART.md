@@ -17,12 +17,20 @@ Use this for a **fresh VM** or after wiping a broken install. Goal: **one deploy
 From the repo root (e.g. `~/oc_uros` or `~/openclaw`):
 
 ```bash
-./scripts/wipe-vm-state.sh
+make wipe-vm
 # optional: reclaim disk
 ./scripts/wipe-vm-state.sh --prune-docker
 ```
 
 Keeps `.env` so you can edit GSM names and provider. To delete `.env` too: `./scripts/wipe-vm-state.sh --full`.
+
+If you see **`Permission denied`** removing `.openclaw-config` (files owned by Docker UID **1000**), run wipe as an admin:
+
+```bash
+sudo bash -c 'cd /home/g8ot_4gent_5mith/oc_uros && ./scripts/wipe-vm-state.sh'
+```
+
+(`g8ot` often cannot `sudo`; use **`urospodkriznik`** or another sudo user.)
 
 ## 2. Update secrets in GCP (new bot)
 
