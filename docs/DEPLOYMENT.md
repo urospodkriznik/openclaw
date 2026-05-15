@@ -18,7 +18,7 @@
    - Ensures `OPENCLAW_GATEWAY_TOKEN` exists (appends to `.env` if missing).
    - Writes `$OPENCLAW_CONFIG_DIR/openclaw.json` and `exec-approvals.json` from autonomy flags (re-runs overwrite these files—keep advanced edits elsewhere or adjust the script).
 3. `./scripts/validate-env.sh`
-4. `./scripts/fetch-secrets-gsm.sh` (required for `USE_GSM_SECRETS=true`; writes `.env.generated` with Telegram and optional `OPENAI_API_KEY` / `GEMINI_API_KEY` when `GSM_OPENAI_API_KEY_SECRET` / `GSM_GEMINI_API_KEY_SECRET` are set)
+4. `./scripts/fetch-secrets-gsm.sh` (required for `USE_GSM_SECRETS=true`; writes `.env.generated` with Telegram and optional `OPENAI_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_PLACES_API_KEY` when `GSM_OPENAI_API_KEY_SECRET` / `GSM_GEMINI_API_KEY_SECRET` / `GSM_GOOGLE_PLACES_API_KEY_SECRET` are set)
 5. `./scripts/docker-compose.sh up -d`
 6. `./scripts/healthcheck.sh`
 7. One-time Telegram registration:

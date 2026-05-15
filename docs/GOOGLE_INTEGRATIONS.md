@@ -173,5 +173,14 @@ This repo does **not** mount Drive-specific secrets or enable Drive API by defau
 
 ## Secret Manager + IAM vs OAuth
 
-- **GCP production (this template):** use VM IAM + **Google Secret Manager** for bot tokens and optional API keys (OpenAI, Gemini developer API via `GSM_*` env vars and `fetch-secrets-gsm.sh`).
+- **GCP production (this template):** use VM IAM + **Google Secret Manager** for bot tokens and optional API keys (OpenAI, Gemini developer API, Google Places via `GSM_*` env vars and `fetch-secrets-gsm.sh`).
+
+## Google Places (Maps nearby search)
+
+- **API:** [Places API (New)](https://developers.google.com/maps/documentation/places/web-service/overview) — enable on `GOOGLE_CLOUD_PROJECT`, create an API key (restrict to Places API).
+- **Auth:** **`GOOGLE_PLACES_API_KEY`** in `.env`, or **`GSM_GOOGLE_PLACES_API_KEY_SECRET`** + **`./scripts/fetch-secrets-gsm.sh`** → **`.env.generated`** (secret payload = the API key string only).
+- **Skill:** install **[goplaces](https://clawhub.ai/steipete/goplaces)** (`openclaw skills install goplaces`) and mount the Linux **`goplaces`** binary into the gateway (same pattern as **`gog`**). **`GOOGLE_PLACES_API_KEY`** is optional: empty = Telegram/gog still work; filled (`.env` or `.env.generated`) = Places search works.
+- **Optional everywhere:** omit **`GSM_GOOGLE_PLACES_API_KEY_SECRET`** and leave **`GOOGLE_PLACES_API_KEY`** empty — `validate-env` and `fetch-secrets-gsm.sh` do not require Places (same as optional Gemini GSM).
+- **Telegram location:** share a location pin; OpenClaw exposes `LocationLat` / `LocationLon` — see [Channel location parsing](https://docs.openclaw.ai/channels/location).
+- **Not via gog:** Workspace OAuth does not replace a Places API key.
 - **OAuth:** still common for user-owned Gmail/Calendar/Drive when you add **skills**; more moving parts (consent screen, refresh tokens). Prefer OpenClaw’s auth store or GSM for those secrets—**never** commit tokens.

@@ -40,6 +40,7 @@ fi
 TELEGRAM_SECRET="${GSM_TELEGRAM_BOT_TOKEN_SECRET:-}"
 OPENAI_SECRET="${GSM_OPENAI_API_KEY_SECRET:-}"
 GEMINI_SECRET="${GSM_GEMINI_API_KEY_SECRET:-}"
+PLACES_SECRET="${GSM_GOOGLE_PLACES_API_KEY_SECRET:-}"
 if [[ -z "$TELEGRAM_SECRET" ]]; then
   echo "fetch-secrets-gsm: set GSM_TELEGRAM_BOT_TOKEN_SECRET" >&2
   exit 1
@@ -54,6 +55,13 @@ gemini_value=""
 if [[ -n "$GEMINI_SECRET" ]]; then
   gemini_value="$(gcloud secrets versions access latest --secret="$GEMINI_SECRET" --project="$PROJECT" 2>/dev/null || true)"
 fi
+places_value=""
+if [[ -n "$PLACES_SECRET" ]]; then
+  places_value="$(gcloud secrets versions access latest --secret="$PLACES_SECRET" --project="$PROJECT" 2>/dev/null || true)"
+  if [[ -z "$places_value" ]]; then
+    echo "fetch-secrets-gsm: warning: could not read secret $PLACES_SECRET (check name, IAM, or secret version)" >&2
+  fi
+fi
 
 umask 077
 {
@@ -63,6 +71,9 @@ umask 077
   fi
   if [[ -n "$gemini_value" ]]; then
     printf 'GEMINI_API_KEY=%s\n' "$gemini_value"
+  fi
+  if [[ -n "$places_value" ]]; then
+    printf 'GOOGLE_PLACES_API_KEY=%s\n' "$places_value"
   fi
 } > "$ROOT_DIR/.env.generated"
 umask 022

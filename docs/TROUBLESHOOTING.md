@@ -69,6 +69,7 @@ gcloud auth list
 gcloud secrets versions access latest --secret "$GSM_TELEGRAM_BOT_TOKEN_SECRET" --project "$GSM_PROJECT_ID"
 # If configured, test optional secrets the same way (replace with your secret names):
 # gcloud secrets versions access latest --secret "$GSM_GEMINI_API_KEY_SECRET" --project "$GSM_PROJECT_ID"
+# gcloud secrets versions access latest --secret "$GSM_GOOGLE_PLACES_API_KEY_SECRET" --project "$GSM_PROJECT_ID"
 ./scripts/validate-env.sh
 ./scripts/fetch-secrets-gsm.sh
 ```
