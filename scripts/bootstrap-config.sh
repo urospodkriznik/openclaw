@@ -59,6 +59,19 @@ resolve_primary_model() {
 
 PRIMARY_MODEL="$(resolve_primary_model)"
 
+# openai/gpt-* defaults to Codex harness on recent images; prebuilt Docker often has no codex plugin.
+apply_openai_pi_runtime() {
+  [[ "$PRIMARY_MODEL" == openai/* ]] || return 0
+  local tmp="${OPENCLAW_JSON}.tmp"
+  jq '
+    .models //= {}
+    | .models.providers //= {}
+    | .models.providers.openai //= {}
+    | .models.providers.openai.agentRuntime = { "id": "pi" }
+  ' "$OPENCLAW_JSON" >"$tmp"
+  mv "$tmp" "$OPENCLAW_JSON"
+}
+
 # Host .env token for compose interpolation
 if [[ -f "$ENV_FILE" ]] && grep -qE '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE"; then
   line="$(grep -E '^OPENCLAW_GATEWAY_TOKEN=.+' "$ENV_FILE" | tail -n1)"
@@ -201,6 +214,7 @@ write_openclaw_json() {
 }
 
 write_openclaw_json
+apply_openai_pi_runtime
 
 echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL)"
 if truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}" && ! truthy "${FULL_AUTONOMY:-false}"; then
@@ -209,6 +223,7 @@ fi
 echo "Next (local): make init   — or manually: channels add + make restart-dev (see README)"
 case "$(llm_provider_lc)" in
   openai)
+    echo "OpenAI: agents use PI runtime (direct API) unless you remove models.providers.openai.agentRuntime."
     echo "OpenAI: set OPENAI_API_KEY in .env. Verify: ./scripts/docker-compose.sh run -T --rm openclaw-cli models list --provider openai"
     ;;
   *)

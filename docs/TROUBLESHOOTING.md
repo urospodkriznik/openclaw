@@ -214,6 +214,68 @@ Then **`./scripts/docker-compose.sh … down`** and **`up -d`** (cleaner than **
 
 6. **Config schema:** Very old gateway images might reject unknown keys. If logs show a parse error on **`agents.defaults.llm`**, remove that block from **`openclaw.json`** or upgrade **`OPENCLAW_IMAGE`**, then **`./scripts/docker-compose.sh up -d --force-recreate`** (gateway + CLI).
 
+## Gateway logs `Missing config` but `jq '.gateway.mode'` is `"local"` on the host
+
+The gateway runs as **UID 1000** inside the image. If you restored config with:
+
+```bash
+cp .openclaw-config/openclaw.json.bak .openclaw-config/openclaw.json
+```
+
+the backup is often mode **`600`** (`-rw-------`). Your SSH user can read it with **`jq`**, but the container **cannot** → crash loop with **`Missing config. Run openclaw setup or set gateway.mode=local`**.
+
+**Check:**
+
+```bash
+ls -la .openclaw-config/openclaw.json
+./scripts/diagnose-openclaw-config.sh
+```
+
+**Fix (pick one):**
+
+```bash
+chmod 644 .openclaw-config/openclaw.json
+# or (preferred before compose up on a VM):
+sudo ./scripts/reown-openclaw-mounts.sh --container
+./scripts/docker-compose.sh up -d --force-recreate
+./scripts/healthcheck.sh
+```
+
+After **`/healthz` OK**, re-apply Codex/PI changes with **`jq`** (not **`nano`**) if needed; see **OpenAI `openai/gpt-*` → “codex harness not registered”** below.
+
+**`chmod 755 .openclaw-config` alone is not enough for a running gateway.** The container must also **write** under **`logs/`**, **`credentials/`**, etc. If logs show **`EACCES`** on **`/home/node/.openclaw/logs/...`** or **`credentials/oauth.json`**, re-own the whole tree to UID **1000** (deploy user cannot `sudo` — use an admin account):
+
+```bash
+# as urospodkriznik (or any user with sudo), full path to the clone:
+sudo bash -c 'cd /home/g8ot_4gent_5mith/oc_uros && ./scripts/reown-openclaw-mounts.sh --container'
+```
+
+Then as the deploy user: **`./scripts/docker-compose.sh up -d --force-recreate`** and **`./scripts/healthcheck.sh`**.
+
+## OpenAI `openai/gpt-*` → “Requested agent harness codex is not registered”
+
+On recent OpenClaw images, **`openai/gpt-*`** model refs may route agent turns through the **Codex** harness. If the **`codex` plugin** is not loaded, Telegram replies fail with a generic error; logs show **`codex is not registered`**.
+
+**Option A — force PI (direct OpenAI API)** — add only after the gateway is healthy; a bare **`models.providers.openai`** object can wipe the bundled provider on some versions:
+
+```bash
+jq '
+  .models //= {}
+  | .models.providers //= {}
+  | .models.providers.openai //= {}
+  | .models.providers.openai.agentRuntime = { "id": "pi" }
+' .openclaw-config/openclaw.json > /tmp/oc.json && mv /tmp/oc.json .openclaw-config/openclaw.json
+chmod 644 .openclaw-config/openclaw.json
+sudo ./scripts/reown-openclaw-mounts.sh --container
+./scripts/docker-compose.sh up -d --force-recreate
+```
+
+If the gateway crash-loops again, remove the block: **`jq 'del(.models)' …`** and use **Option B**.
+
+**Option B — change model** in **`.env`** / **`.env.generated`** (e.g. **`OPENAI_MODEL=gpt-4.1-mini`**), run **`./scripts/bootstrap-config.sh`**, recreate, then **`/new`** in Telegram.
+
+**Option C — enable Codex** per [OpenClaw Codex harness](https://docs.openclaw.ai/plugins/codex-harness) (heavier on small VMs).
+
 ## Gateway stuck `Restarting (1)` (crash loop)
 
 Often **`openclaw.json`** is invalid for this image or **replaces** built-in provider config incorrectly.
