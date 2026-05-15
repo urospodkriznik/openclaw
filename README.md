@@ -73,17 +73,16 @@ flowchart LR
 ```bash
 git clone https://github.com/<you>/openclaw.git
 cd openclaw
-make init          # creates .env on first run — edit it, then run make init again
+make init          # step 1: creates .env — edit it, then make init again (exits cleanly, not an error)
 ```
 
-**Edit `.env` before the second `make init`** (minimum):
+**Edit `.env` before the second `make init`** (minimum). If secrets are still empty, `make init` prints what’s missing and exits successfully again:
 
 | Variable | Required |
 |----------|----------|
 | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` | Yes (project/region alignment) |
 | `TELEGRAM_BOT_TOKEN` | Yes (from [@BotFather](https://t.me/BotFather)) |
-| `GEMINI_API_KEY` | Yes when `LLM_PROVIDER=google` (default) |
-| `OPENAI_API_KEY` | Yes when `LLM_PROVIDER=openai` |
+| `GEMINI_API_KEY` **or** `OPENAI_API_KEY` | One only — depends on `LLM_PROVIDER` (`google` default → Gemini; `openai` → OpenAI) |
 
 Optional: `GOG_*` and host `gog auth` for Google Workspace — see [docs/GOOGLE_INTEGRATIONS.md](docs/GOOGLE_INTEGRATIONS.md).
 
@@ -106,24 +105,28 @@ If the official image is **linux/amd64** only on **Apple Silicon**, add a Compos
 
 ### GCP VM (production)
 
+**Prereqs:** Ubuntu 24.04 VM, IAM (Secret Manager accessor on the VM service account if using GSM). Docker installed, or use `INSTALL_HOST_DEPS=1` on first `make init-vm` (sudo).
+
 ```bash
 git clone https://github.com/<you>/openclaw.git
 cd openclaw
-cp .env.example .env
-# Edit .env: USE_GSM_SECRETS=true, GSM_*, GOOGLE_CLOUD_*, etc.
-
-sudo ./scripts/setup-server.sh
-sudo ./scripts/install-docker.sh
-./scripts/bootstrap-config.sh
-./scripts/validate-env.sh
-./scripts/fetch-secrets-gsm.sh   # when USE_GSM_SECRETS=true
-
-./scripts/docker-compose.sh up -d
-./scripts/healthcheck.sh
-./scripts/docker-compose.sh run -T --rm openclaw-cli channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN"
+make init-vm          # step 1: creates .env — edit (USE_GSM_SECRETS=true, GSM_*, …), then make init-vm again
 ```
 
-**One-command deploy after initial VM setup:** `./scripts/deploy.sh` or `make deploy`.
+**Typical `.env` on the VM:** `USE_GSM_SECRETS=true`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GSM_TELEGRAM_BOT_TOKEN_SECRET`, and `GSM_GEMINI_API_KEY_SECRET` or `GSM_OPENAI_API_KEY_SECRET` matching `LLM_PROVIDER` (not both).
+
+**What `make init-vm` runs:** optional host Docker install → reown mounts → bootstrap → validate → `fetch-secrets-gsm.sh` → gog (optional) → **production** `docker compose` → Telegram `channels add` → `/healthz`.
+
+```bash
+# First boot without Docker yet:
+INSTALL_HOST_DEPS=1 make init-vm
+
+# After the stack is up:
+make deploy    # git pull + restart (ongoing updates)
+make restart   # recreate production stack without git pull
+```
+
+Manual steps (equivalent to `make init-vm`) are still in [docs/GCP_SETUP.md](docs/GCP_SETUP.md) and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## 6. GCP setup
 
@@ -247,9 +250,10 @@ OpenClaw reads **`openclaw.json`** (JSON5-capable) under `OPENCLAW_CONFIG_DIR`. 
 
 | Target | Action |
 |--------|--------|
-| **`make init`** | **New clone (local):** `.env` → bootstrap → gog → pull → up (recreate) → Telegram → healthz |
-| `make setup-local` | Same as `init` (expects `.env` already) |
-| `make setup` | VM only: `scripts/setup-server.sh` (sudo) |
+| **`make init`** | **New clone (local Mac/Linux):** `.env` → bootstrap → gog → dev compose → Telegram → healthz |
+| **`make init-vm`** | **New GCP VM:** GSM/local secrets → production compose → Telegram → healthz (Linux only) |
+| `make setup-local` / `setup-vm` | Same as `init` / `init-vm` when `.env` already exists |
+| `make setup` | VM host packages only: `scripts/setup-server.sh` (sudo) |
 | `make dev` / `make local` | Dev compose up (**`--force-recreate`** + gog push); use after `make init` |
 | `make up` / `down` / `restart` | Production compose lifecycle |
 | `make restart-dev` / `restart-local` | Dev compose **`--force-recreate`** + gog push |

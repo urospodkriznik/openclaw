@@ -22,6 +22,9 @@ cd "$ROOT_DIR"
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
 COMPOSE_DEV=(./scripts/docker-compose.sh -f docker-compose.dev.yml)
 
+# shellcheck source=lib/required-env.sh
+source "$ROOT_DIR/scripts/lib/required-env.sh"
+
 step() { echo ""; echo "==> $*"; }
 
 need_cmd() {
@@ -34,22 +37,10 @@ need_cmd() {
   done
 }
 
-truthy() {
-  case "${1:-}" in
-    1 | true | TRUE | yes | YES | on | ON) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-llm_provider_lc() {
-  echo "${LLM_PROVIDER:-google}" | tr '[:upper:]' '[:lower:]'
-}
-
 load_env() {
   if [[ ! -f "$ENV_FILE" ]]; then
     echo "setup-local: missing $ENV_FILE" >&2
-    echo "  Run: cp .env.example .env" >&2
-    echo "  Then set GOOGLE_CLOUD_*, LLM keys, and TELEGRAM_BOT_TOKEN (see .env.example)." >&2
+    echo "  Run: make init" >&2
     exit 1
   fi
   set -a
@@ -58,45 +49,29 @@ load_env() {
   set +a
 }
 
-env_placeholder_or_empty() {
-  local v="${1:-}"
-  [[ -z "$v" ]] && return 0
-  case "$v" in
-    changeme | CHANGE_ME | your-* | YOUR_* | placeholder*) return 0 ;;
-  esac
-  return 1
+print_missing_env_vars() {
+  echo "Still need values in $ENV_FILE:"
+  printf '  • %s\n' "${MISSING_ENV_VARS[@]}"
+  echo ""
+  echo "Then run: make init"
 }
 
 check_env_filled() {
-  local missing=()
-  env_placeholder_or_empty "${GOOGLE_CLOUD_PROJECT:-}" && missing+=(GOOGLE_CLOUD_PROJECT)
-  env_placeholder_or_empty "${GOOGLE_CLOUD_LOCATION:-}" && missing+=(GOOGLE_CLOUD_LOCATION)
-
-  case "$(llm_provider_lc)" in
-    openai)
-      if ! truthy "${USE_GSM_SECRETS:-false}" && env_placeholder_or_empty "${OPENAI_API_KEY:-}"; then
-        missing+=(OPENAI_API_KEY)
-      fi
-      ;;
-    google | gemini)
-      if ! truthy "${USE_GSM_SECRETS:-false}" && env_placeholder_or_empty "${GEMINI_API_KEY:-}"; then
-        missing+=(GEMINI_API_KEY)
-      fi
-      ;;
-    *)
-      missing+=("LLM_PROVIDER (must be google or openai)")
-      ;;
-  esac
-
-  if ! truthy "${USE_GSM_SECRETS:-false}" && env_placeholder_or_empty "${TELEGRAM_BOT_TOKEN:-}"; then
-    missing+=(TELEGRAM_BOT_TOKEN)
-  fi
-
-  if ((${#missing[@]} > 0)); then
-    echo "setup-local: edit $ENV_FILE and set:" >&2
-    printf '  - %s\n' "${missing[@]}" >&2
+  collect_missing_env_vars local
+  if ((${#MISSING_ENV_VARS[@]} > 0)); then
+    print_missing_env_vars >&2
     exit 1
   fi
+}
+
+preflight_env_only() {
+  load_env
+  collect_missing_env_vars local
+  if ((${#MISSING_ENV_VARS[@]} > 0)); then
+    print_missing_env_vars
+    return 1
+  fi
+  return 0
 }
 
 docker_ready() {
@@ -140,6 +115,11 @@ detect_gog_arch() {
 }
 
 # --- main ---
+
+if [[ "${1:-}" == "--preflight-only" ]]; then
+  preflight_env_only
+  exit $?
+fi
 
 need_cmd docker jq curl
 load_env

@@ -14,7 +14,7 @@
 ## Initial bootstrap
 
 1. `cp .env.example .env` and fill GCP + Telegram + paths.
-2. **Local workstation:** `make init` (see README). **VM:** `./scripts/bootstrap-config.sh`
+2. **Local workstation:** `make init` (see README). **GCP VM first boot:** `make init-vm`. **VM updates:** `make deploy`.
    - Ensures `OPENCLAW_GATEWAY_TOKEN` exists (appends to `.env` if missing).
    - Writes `$OPENCLAW_CONFIG_DIR/openclaw.json` and `exec-approvals.json` from autonomy flags (re-runs overwrite these files—keep advanced edits elsewhere or adjust the script).
 3. `./scripts/validate-env.sh`

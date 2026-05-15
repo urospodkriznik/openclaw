@@ -5,19 +5,25 @@ COMPOSE ?= ./scripts/docker-compose.sh
 COMPOSE_FILES :=
 DEV_FILES := -f docker-compose.dev.yml
 
-.PHONY: setup init setup-local dev local up down restart restart-dev restart-local logs health deploy rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
+.PHONY: setup init init-vm setup-local setup-vm dev local up down restart restart-dev restart-local logs health deploy rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
 
 # GCP VM base packages (sudo). For local Docker workstation use: make init
 setup:
 	@./scripts/setup-server.sh
 
-# Fast path for new clones: copy .env if missing → bootstrap → validate → gog → up → Telegram → healthz
+# Fast path for new clones: scaffold .env → preflight → bootstrap → gog → up → Telegram → healthz
 init:
-	@if [[ ! -f .env ]]; then cp .env.example .env; echo "Created .env from .env.example — edit secrets, then run: make init"; exit 1; fi
-	@./scripts/setup-local.sh
+	@./scripts/init-local.sh
 
 setup-local:
 	@./scripts/setup-local.sh
+
+# GCP VM first boot (production compose, GSM, reown). Not for macOS — use make init.
+init-vm:
+	@./scripts/init-vm.sh
+
+setup-vm:
+	@./scripts/setup-vm.sh
 
 dev:
 	@$(COMPOSE) $(DEV_FILES) up -d --force-recreate
@@ -39,6 +45,7 @@ down:
 
 # Recreates containers (safe). Do NOT use `docker compose restart` on this stack: openclaw-cli
 # uses network_mode: service:openclaw-gateway; restarting only the gateway breaks that bind.
+# Production VM / server (same compose as make deploy, without git pull).
 restart:
 	@$(COMPOSE) $(COMPOSE_FILES) up -d --force-recreate
 	@sleep 5

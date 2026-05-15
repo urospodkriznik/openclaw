@@ -5,6 +5,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# shellcheck source=lib/required-env.sh
+source "$ROOT_DIR/scripts/lib/required-env.sh"
+
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
 if [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -14,13 +17,6 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 err() { echo "validate-env: $*" >&2; exit 1; }
-
-truthy() {
-  case "${1:-}" in
-    1 | true | TRUE | yes | YES | on | ON) return 0 ;;
-    *) return 1 ;;
-  esac
-}
 
 if truthy "${DEMO_MODE:-false}" && truthy "${FULL_AUTONOMY:-false}"; then
   err "DEMO_MODE and FULL_AUTONOMY cannot both be true."
@@ -61,10 +57,6 @@ fi
 : "${GEMINI_MODEL:=gemini-3-flash-preview}"
 : "${OPENAI_MODEL:=gpt-4.1-mini}"
 
-llm_provider_lc() {
-  echo "${LLM_PROVIDER:-google}" | tr '[:upper:]' '[:lower:]'
-}
-
 if [[ "${VALIDATION_LEVEL:-full}" == "full" ]]; then
   case "$(llm_provider_lc)" in
     openai)
@@ -72,7 +64,11 @@ if [[ "${VALIDATION_LEVEL:-full}" == "full" ]]; then
         err "LLM_PROVIDER=openai requires OPENAI_API_KEY in .env (or USE_GSM_SECRETS=true with secrets that supply it)."
       fi
       ;;
-    google | gemini) ;;
+    google | gemini)
+      if [[ -z "${GEMINI_API_KEY:-}" ]] && ! truthy "${USE_GSM_SECRETS:-false}"; then
+        err "LLM_PROVIDER=google requires GEMINI_API_KEY in .env (or USE_GSM_SECRETS=true with GSM_GEMINI_API_KEY_SECRET)."
+      fi
+      ;;
     *)
       err "LLM_PROVIDER must be google or openai (got: ${LLM_PROVIDER:-})"
       ;;

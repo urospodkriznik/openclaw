@@ -40,7 +40,11 @@ jobs:
             scripts/sync-gog-cli-config.sh \
             scripts/push-gogcli-to-gateway.sh \
             scripts/install-gog-linux-for-docker.sh \
+            scripts/lib/required-env.sh \
+            scripts/init-local.sh \
+            scripts/init-vm.sh \
             scripts/setup-local.sh \
+            scripts/setup-vm.sh \
             scripts/verify-gog-in-container.sh \
             docker-compose.gog.yml \
             config/openclaw.example.json5 \
