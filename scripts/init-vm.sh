@@ -89,4 +89,4 @@ if ! ./scripts/setup-vm.sh --preflight-only; then
   exit 0
 fi
 
-exec ./scripts/setup-vm.sh
+./scripts/setup-vm.sh

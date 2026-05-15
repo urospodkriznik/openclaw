@@ -79,4 +79,4 @@ if ! ./scripts/setup-local.sh --preflight-only; then
   exit 0
 fi
 
-exec ./scripts/setup-local.sh
+./scripts/setup-local.sh

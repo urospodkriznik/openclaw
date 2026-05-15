@@ -29,11 +29,18 @@ env_placeholder_or_empty() {
 collect_missing_env_vars() {
   local target="${1:-local}"
   MISSING_ENV_VARS=()
-  env_placeholder_or_empty "${GOOGLE_CLOUD_PROJECT:-}" && MISSING_ENV_VARS+=(GOOGLE_CLOUD_PROJECT)
-  env_placeholder_or_empty "${GOOGLE_CLOUD_LOCATION:-}" && MISSING_ENV_VARS+=(GOOGLE_CLOUD_LOCATION)
+  # Use `if` — not `cmd && …`. env_placeholder_or_empty returns 1 for valid values, which trips set -e with &&.
+  if env_placeholder_or_empty "${GOOGLE_CLOUD_PROJECT:-}"; then
+    MISSING_ENV_VARS+=(GOOGLE_CLOUD_PROJECT)
+  fi
+  if env_placeholder_or_empty "${GOOGLE_CLOUD_LOCATION:-}"; then
+    MISSING_ENV_VARS+=(GOOGLE_CLOUD_LOCATION)
+  fi
 
   if truthy "${USE_GSM_SECRETS:-false}"; then
-    env_placeholder_or_empty "${GSM_TELEGRAM_BOT_TOKEN_SECRET:-}" && MISSING_ENV_VARS+=(GSM_TELEGRAM_BOT_TOKEN_SECRET)
+    if env_placeholder_or_empty "${GSM_TELEGRAM_BOT_TOKEN_SECRET:-}"; then
+      MISSING_ENV_VARS+=(GSM_TELEGRAM_BOT_TOKEN_SECRET)
+    fi
     case "$(llm_provider_lc)" in
       openai)
         if env_placeholder_or_empty "${GSM_OPENAI_API_KEY_SECRET:-}"; then
@@ -54,17 +61,23 @@ collect_missing_env_vars() {
 
   case "$(llm_provider_lc)" in
     openai)
-      env_placeholder_or_empty "${OPENAI_API_KEY:-}" && MISSING_ENV_VARS+=(OPENAI_API_KEY)
+      if env_placeholder_or_empty "${OPENAI_API_KEY:-}"; then
+        MISSING_ENV_VARS+=(OPENAI_API_KEY)
+      fi
       ;;
     google | gemini)
-      env_placeholder_or_empty "${GEMINI_API_KEY:-}" && MISSING_ENV_VARS+=(GEMINI_API_KEY)
+      if env_placeholder_or_empty "${GEMINI_API_KEY:-}"; then
+        MISSING_ENV_VARS+=(GEMINI_API_KEY)
+      fi
       ;;
     *)
       MISSING_ENV_VARS+=("LLM_PROVIDER (must be google or openai)")
       ;;
   esac
 
-  env_placeholder_or_empty "${TELEGRAM_BOT_TOKEN:-}" && MISSING_ENV_VARS+=(TELEGRAM_BOT_TOKEN)
+  if env_placeholder_or_empty "${TELEGRAM_BOT_TOKEN:-}"; then
+    MISSING_ENV_VARS+=(TELEGRAM_BOT_TOKEN)
+  fi
 }
 
 llm_api_key_label() {
