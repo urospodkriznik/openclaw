@@ -36,9 +36,11 @@ EOF
 
 Recommended on GCP: USE_GSM_SECRETS=true and GSM_* secret names (not raw tokens in .env).
 
-First VM install: use a NEW Telegram bot (BotFather), LLM_PROVIDER=google (Gemini), and:
-  SKIP_GOG=1 make init-vm
-See docs/VM_QUICKSTART.md for a clean wipe + reinstall.
+First VM install: use a NEW Telegram bot (BotFather), LLM_PROVIDER=google (Gemini):
+  make deploy-instances-init   # edit deploy/instances.json (gitignored)
+  SKIP_GOG=1 INSTALL_HOST_DEPS=1 make init-vm
+  gog auth … on host, then: make setup-gog
+See docs/VM_QUICKSTART.md (cheat sheet).
 
 Host packages (once, with sudo):
   sudo ./scripts/setup-server.sh

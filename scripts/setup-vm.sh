@@ -291,6 +291,9 @@ echo "  Model: $primary (LLM_PROVIDER=${LLM_PROVIDER:-google})"
 echo ""
 echo "Next:"
 echo "  • Telegram: message your bot (use a dedicated VM bot — not the Mac token); /approve if pairing is required"
+if truthy "${SKIP_GOG:-0}"; then
+  echo "  • gog:      gog auth credentials … && gog auth add …  then: make setup-gog"
+fi
 echo "  • Guide:    docs/VM_QUICKSTART.md"
 echo "  • Updates:  make deploy   (git pull + restart on this VM)"
 echo "  • Logs:     make logs"

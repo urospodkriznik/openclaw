@@ -1,114 +1,123 @@
-# GCP VM quick start (clean install)
+# GCP VM quick start
 
-Use this for a **fresh VM** or after wiping a broken install. Goal: **one deploy user**, **one new Telegram bot**, **Gemini**, **no gog** on first pass.
+One-page path for a **fresh Linux VM** (Gemini + Telegram + optional gog + GitHub deploy).
 
-## Before you start
+## Cheat sheet (copy in order)
 
-| Item | Recommendation |
-|------|----------------|
-| VM size | **e2-small** (2 GB) or larger; e2-micro is fragile |
-| Deploy user | One Linux user for clone + `make init-vm` (passwordless `sudo` for `chown` helps — see [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md)) |
-| Telegram | **New bot** from [@BotFather](https://t.me/BotFather) — do not reuse the Mac/local bot token |
-| LLM | `LLM_PROVIDER=google` (default) + Gemini API key in GSM or `.env` |
-| Mac | Stop local OpenClaw (`docker compose down`) so it does not poll the same bot |
+| Step | Where | Command / action |
+|------|--------|------------------|
+| 1 | GCP | VM **e2-small+**, service account → Secret Manager accessor |
+| 2 | VM | `git clone … ~/openclaw` (or your folder) → `cd` there |
+| 3 | VM | `make deploy-instances-init` → edit `deploy/instances.json` (`path` = clone folder name) |
+| 4 | GitHub | Variable `DEPLOY_INSTANCES_JSON` = same JSON one line; secrets `GCP_VM_*`; deploy user SSH key in `authorized_keys` |
+| 5 | VM | `make init-vm` → edit `.env` → `SKIP_GOG=1 INSTALL_HOST_DEPS=1 make init-vm` |
+| 6 | VM | `gog auth …` on host (see below) → **`make setup-gog`** |
+| 7 | Telegram | Message bot → `/approve` if needed → `/new` |
 
-## 1. Wipe old state (on the VM)
+**Mac:** stop local stack if it uses the same Telegram bot.
 
-From the repo root (e.g. `~/openclaw-primary` or `~/openclaw`):
+---
 
-```bash
-make wipe-vm
-# optional: reclaim disk
-./scripts/wipe-vm-state.sh --prune-docker
-```
-
-Keeps `.env` so you can edit GSM names and provider. To delete `.env` too: `./scripts/wipe-vm-state.sh --full`.
-
-If you see **`Permission denied`** removing `.openclaw-config` (files owned by Docker UID **1000**), run wipe as an admin:
+## 1. Clone and deploy manifest
 
 ```bash
-sudo bash -c 'cd /home/deployuser/openclaw-primary && ./scripts/wipe-vm-state.sh'
+mkdir -p ~/openclaw && cd ~/openclaw
+git clone https://github.com/<you>/<repo>.git .
+make deploy-instances-init
+# edit deploy/instances.json — "path" must match this folder name (e.g. openclaw)
 ```
 
-(If the deploy user cannot `sudo`, use an admin account with sudo.)
+Mirror that JSON in GitHub → **Settings → Variables →** `DEPLOY_INSTANCES_JSON`.
 
-## 2. Update secrets in GCP (new bot)
+SSH deploy: [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md) (deploy user, `GCP_VM_SSH_KEY`, `authorized_keys` after a clean VM).
 
-1. Create a **new** bot token in BotFather.
-2. Store it in Secret Manager (new secret version or new secret id).
-3. Point `GSM_TELEGRAM_BOT_TOKEN_SECRET` in `.env` at that secret.
-4. Ensure the VM service account has **Secret Manager Secret Accessor**.
+## 2. Configure `.env`
 
-## 3. Configure `.env`
+```bash
+make init-vm   # creates .env from example — edit, then continue
+```
 
-Minimum for GSM + Gemini:
+Typical production values:
 
 ```bash
 USE_GSM_SECRETS=true
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=europe-southwest1
-GSM_TELEGRAM_BOT_TOKEN_SECRET=telegram-bot-token-vm   # example name
+GSM_TELEGRAM_BOT_TOKEN_SECRET=telegram-bot-token-vm
 GSM_GEMINI_API_KEY_SECRET=gemini-api-key
 LLM_PROVIDER=google
 GEMINI_MODEL=gemini-3-flash-preview
-OPENCLAW_CONFIG_DIR=./.openclaw-config
-OPENCLAW_WORKSPACE_DIR=./workspace
+
+# gog (needed before make setup-gog)
+GOG_KEYRING_BACKEND=file
+GOG_KEYRING_PASSWORD=your-long-random-password
+GOG_ACCOUNT=you@gmail.com
 ```
 
-Do **not** set `OPENAI_*` for this path. Leave `LLM_PROVIDER` unset or `google`.
+Use a **new** Telegram bot token in GSM (not the same as your Mac).
 
-Scaffold if needed:
+## 3. First install (no gog yet)
 
 ```bash
-make init-vm    # creates .env from example — edit, then run again
+SKIP_GOG=1 INSTALL_HOST_DEPS=1 make init-vm
 ```
 
-## 4. Install (skip gog on first success)
+Does: host Docker (if needed) → reown → bootstrap → GSM → compose up → Telegram → `/healthz`.
+
+## 4. gog (one command after host OAuth)
+
+**On the VM** (headless: `--manual` in your laptop browser):
 
 ```bash
-SKIP_GOG=1 make init-vm
+set -a && source .env && set +a
+gog auth credentials /path/to/client_secret.json
+gog auth add you@gmail.com --services gmail,calendar,drive,docs,sheets --manual
 ```
 
-Or first boot without Docker yet:
+Then:
 
 ```bash
-INSTALL_HOST_DEPS=1 SKIP_GOG=1 make init-vm
+make setup-gog
 ```
 
-This runs: reown → bootstrap → GSM fetch → compose up → Telegram `channels add` → `/healthz`.
+That installs Linux `gog`, runs `sync-gog-config`, reowns, recreates the gateway, pushes the gog volume, and runs `gog auth doctor` in the container.
+
+Manual equivalents: `make install-gog-linux` → `make sync-gog-config` → `make restart` — prefer **`make setup-gog`**.
 
 ## 5. Telegram
 
-1. Message the **new** bot: `ping`
-2. If pairing is required:
+1. Message the VM bot (`ping`).
+2. Pairing: `./scripts/docker-compose.sh run -T --rm openclaw-cli pairing list telegram` → `pairing approve …`
+3. `/new` and test.
+
+## 6. Updates
+
+| Action | Command |
+|--------|---------|
+| On VM (git pull + restart) | `make deploy` |
+| From GitHub | push to `main` |
+| gog token refresh on host | `make setup-gog` (or `make sync-gog-config && make restart`) |
+
+## Wipe and reinstall
 
 ```bash
-./scripts/docker-compose.sh run -T --rm openclaw-cli pairing list telegram
-./scripts/docker-compose.sh run -T --rm openclaw-cli pairing approve telegram <CODE>
+make wipe-vm
+# if Permission denied on .openclaw-config (UID 1000):
+sudo bash -c 'cd /home/deployuser/openclaw && ./scripts/wipe-vm-state.sh'
 ```
 
-Or approve in the Telegram chat with **`/approve`** when the bot prompts you.
+Then repeat from §2.
 
-3. `/new` then ask a short question.
+## Troubleshooting
 
-## 6. If something fails
-
-| Symptom | See |
+| Symptom | Doc |
 |---------|-----|
-| `Missing config` / `EACCES` | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — config dir `755`, `reown --container` |
-| `codex is not registered` | You used OpenAI `openai/gpt-*` without PI — use Gemini or pull latest `bootstrap-config.sh` |
-| No Telegram logs | Wrong bot token, or Mac still polling — `deleteWebhook` + stop Mac stack |
-| Healthcheck timeout | Wait longer: `HEALTHCHECK_MAX_WAIT_SECONDS=180 ./scripts/healthcheck.sh` |
-
-Diagnostics:
+| `EACCES` / Missing config | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — `chmod 755 .openclaw-config`, `reown --container` |
+| gog / empty keyring | [GOOGLE_INTEGRATIONS.md](GOOGLE_INTEGRATIONS.md), `make setup-gog` |
+| Deploy SSH / wrong path | [GITHUB_ACTIONS.md](GITHUB_ACTIONS.md) |
+| `codex not registered` | Use Gemini or latest `bootstrap-config.sh` |
 
 ```bash
 ./scripts/diagnose-openclaw-config.sh
-./scripts/docker-compose.sh logs --tail=80 openclaw-gateway
+make logs
 ```
-
-## 7. After it works
-
-- Add gog: install Linux gog, `gog auth`, `make sync-gog-config`, `make restart`
-- Wire GitHub Actions deploy to the **same clone path** on the VM
-- Optional: OpenAI later with `LLM_PROVIDER=openai` and `OPENAI_MODEL=gpt-4.1-mini` (bootstrap sets PI runtime)
