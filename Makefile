@@ -5,19 +5,29 @@ COMPOSE ?= ./scripts/docker-compose.sh
 COMPOSE_FILES :=
 DEV_FILES := -f docker-compose.dev.yml
 
-.PHONY: setup dev local up down restart restart-dev restart-local logs health deploy rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
+.PHONY: setup init setup-local dev local up down restart restart-dev restart-local logs health deploy rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog
 
+# GCP VM base packages (sudo). For local Docker workstation use: make init
 setup:
 	@./scripts/setup-server.sh
 
+# Fast path for new clones: copy .env if missing → bootstrap → validate → gog → up → Telegram → healthz
+init:
+	@if [[ ! -f .env ]]; then cp .env.example .env; echo "Created .env from .env.example — edit secrets, then run: make init"; exit 1; fi
+	@./scripts/setup-local.sh
+
+setup-local:
+	@./scripts/setup-local.sh
+
 dev:
-	@$(COMPOSE) $(DEV_FILES) up -d
+	@$(COMPOSE) $(DEV_FILES) up -d --force-recreate
 	@sleep 5
 	@./scripts/push-gogcli-to-gateway.sh || true
 
 # Same stack as `make dev`: local workstation (e.g. Mac) with relaxed memory/CPU — no GSM required.
+# Prefer `make init` on first clone (also registers Telegram + gog). Use `make local` for a quick restart without full setup.
 local:
-	@$(COMPOSE) $(DEV_FILES) up -d
+	@$(COMPOSE) $(DEV_FILES) up -d --force-recreate
 	@sleep 5
 	@./scripts/push-gogcli-to-gateway.sh || true
 

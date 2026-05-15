@@ -64,55 +64,66 @@ flowchart LR
 
 **RAM:** OpenClaw’s docs recommend **~2 GB** for comfortable operation. **e2-micro (1 GB)** is a **fragile PoC**—use **4 GB swap** and a prebuilt image only, or move to **e2-small / e2-medium**. See [docs/COSTS.md](docs/COSTS.md).
 
-## 5. Quick start (local or VM)
+## 5. Quick start
+
+### Local Mac / Linux (fastest — Docker only)
+
+**Prereqs:** [Docker](https://docs.docker.com/get-docker/) 24+ with Compose v2, `jq`, `curl`.
+
+```bash
+git clone https://github.com/<you>/openclaw.git
+cd openclaw
+make init          # creates .env on first run — edit it, then run make init again
+```
+
+**Edit `.env` before the second `make init`** (minimum):
+
+| Variable | Required |
+|----------|----------|
+| `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` | Yes (project/region alignment) |
+| `TELEGRAM_BOT_TOKEN` | Yes (from [@BotFather](https://t.me/BotFather)) |
+| `GEMINI_API_KEY` | Yes when `LLM_PROVIDER=google` (default) |
+| `OPENAI_API_KEY` | Yes when `LLM_PROVIDER=openai` |
+
+Optional: `GOG_*` and host `gog auth` for Google Workspace — see [docs/GOOGLE_INTEGRATIONS.md](docs/GOOGLE_INTEGRATIONS.md).
+
+**What `make init` runs** (`scripts/setup-local.sh`): bootstrap config → validate → download **Linux ELF** `gog` → sync host gogcli if present → `docker compose pull` → **`up -d --force-recreate`** (dev limits) → push gog into the container → register Telegram → `/healthz`.
+
+After setup: message your bot (`ping`). Use **`/approve`** if pairing is prompted.
+
+**Day-2 commands:**
+
+| Command | When |
+|---------|------|
+| `make restart-dev` | After `.env`, gog, or compose changes (recreate + gog push) |
+| `make logs` / `make health` | Debug |
+| `make sync-gog-config` | After `gog auth` on the host |
+| `SKIP_GOG=1 make init` | Telegram + LLM only, no gog |
+
+**Do not** use plain `docker compose restart` on this stack — the CLI shares the gateway network namespace. Use **`make restart-dev`** or **`make local`**.
+
+If the official image is **linux/amd64** only on **Apple Silicon**, add a Compose override with `platform: linux/amd64` (slower startup).
+
+### GCP VM (production)
 
 ```bash
 git clone https://github.com/<you>/openclaw.git
 cd openclaw
 cp .env.example .env
-# Edit .env: GOOGLE_CLOUD_*, GEMINI_API_KEY (or GSM), GEMINI_MODEL, TELEGRAM_BOT_TOKEN if USE_GSM_SECRETS=false
-# For production on GCP: USE_GSM_SECRETS=true + Secret Manager names (Telegram required; optional GSM_OPENAI_* / GSM_GEMINI_* for API keys)
+# Edit .env: USE_GSM_SECRETS=true, GSM_*, GOOGLE_CLOUD_*, etc.
 
+sudo ./scripts/setup-server.sh
+sudo ./scripts/install-docker.sh
 ./scripts/bootstrap-config.sh
-./scripts/validate-env.sh   # set VALIDATION_LEVEL=minimal until Telegram is set, if needed
-./scripts/fetch-secrets-gsm.sh   # only needed when USE_GSM_SECRETS=true
+./scripts/validate-env.sh
+./scripts/fetch-secrets-gsm.sh   # when USE_GSM_SECRETS=true
 
 ./scripts/docker-compose.sh up -d
 ./scripts/healthcheck.sh
+./scripts/docker-compose.sh run -T --rm openclaw-cli channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN"
 ```
 
-**One-command deploy after initial VM setup:** on the server, with `.env` + IAM configured, use `./scripts/deploy.sh` or `make deploy` (pulls latest `main`, fetches GSM secrets, restarts).
-
-### Local workstation (e.g. Mac, Docker only, no Secret Manager)
-
-Use the same repo and Compose files as production; keep **`USE_GSM_SECRETS=false`** and store **`GEMINI_API_KEY`**, **`TELEGRAM_BOT_TOKEN`**, and any **`GOG_*`** values in **`.env`**. Skip **`./scripts/fetch-secrets-gsm.sh`** (it removes `.env.generated` and exits when GSM is off).
-
-1. **`cp .env.example .env`** — fill tokens and set **`GOOGLE_CLOUD_PROJECT`** / **`GOOGLE_CLOUD_LOCATION`** (see comment block at top of `.env.example`).
-2. **`./scripts/bootstrap-config.sh`** then **`./scripts/validate-env.sh`** (use **`VALIDATION_LEVEL=minimal`** in `.env` until Telegram is set, if you prefer).
-3. **`make local`** (or **`./scripts/docker-compose.sh -f docker-compose.dev.yml up -d`**) for a **2 GB / 2 CPU** gateway cap suitable for a laptop.
-4. **`./scripts/healthcheck.sh`**, then register Telegram:  
-   `./scripts/docker-compose.sh run -T --rm openclaw-cli channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN"`.
-
-**gog (Drive / Calendar / Mail via [gogcli](https://github.com/openclaw/gogcli)):** OpenClaw runs in a **Linux** container. A **macOS Homebrew `gog` (Mach-O)** cannot execute there. Run **`make install-gog-linux`** (or **`./scripts/install-gog-linux-for-docker.sh`**) to download a **Linux ELF** `gog` into **`.openclaw-host-bin/gog`** (use **`GOG_LINUX_ARCH=arm64`** if your image is **linux/arm64**). **`./scripts/docker-compose.sh`** only adds the gog overlay when the mounted file is **Linux ELF**. On the **Mac host**, run **`gog auth`** so tokens live under **`~/Library/Application Support/gogcli`**, then **`make sync-gog-config`** to copy into **`.openclaw-gog-config`** (staging) and **`make push-gog-gateway`** (or **`make restart-dev`**) to load them into the **named Docker volume** used at **`/home/node/.config/gogcli`** (avoids Docker Desktop bind-mount issues). See [docs/GOOGLE_INTEGRATIONS.md](docs/GOOGLE_INTEGRATIONS.md).
-
-If the official image is **linux/amd64** only on your **Apple Silicon** Mac, add a Compose override with **`platform: linux/amd64`** for the OpenClaw services (expect slower startup).
-
-### Exact steps (Mac + Docker + gog + Telegram)
-
-Run **from the repo root**, in order (anything with `sudo` needs your password):
-
-1. **`cp .env.example .env`** and edit **`.env`** (tokens, **`GOOGLE_CLOUD_*`**, optional **`GOG_*`**).
-2. **`./scripts/bootstrap-config.sh`** then **`./scripts/validate-env.sh`** (use **`VALIDATION_LEVEL=minimal`** in `.env` until Telegram is set, if you prefer).
-3. **`make install-gog-linux`** — Linux **ELF** `gog` into **`.openclaw-host-bin/`** (not Homebrew Mach-O).
-4. On the **Mac host**: **`gog auth …`** until **`~/Library/Application Support/gogcli`** exists.
-5. **`make sync-gog-config`** — copies gogcli → **`.openclaw-gog-config`** (host staging), fixes perms, inode refresh + **`xattr -cr`** on macOS, then streams into the gateway’s **named gogcli volume** via **`push-gogcli-to-gateway.sh`** when Docker is up.
-6. If **`gog`** still cannot read mail: **`make push-gog-gateway`** (may ask for **sudo** so **`tar`** can read mode-**`600`** staging files). **`make restart-dev`** / **`local`** / **`dev`** also run the push after a short sleep.
-7. **`make local`**, **`./scripts/healthcheck.sh`**
-8. **`make verify-gog`** — confirm ELF magic **`7f 45 4c 46`** on gateway + CLI.
-9. Telegram: **`./scripts/docker-compose.sh run -T --rm openclaw-cli channels add …`** then **`/approve`** pairing if prompted.
-10. After any gog or compose change: **`make restart-dev`** (not **`docker compose restart`** only the gateway). **`make sync-gog-config`** again whenever you re-auth **`gog`** on the host; **`restart-dev`** / **`local`** / **`dev`** run **`push-gogcli-to-gateway.sh`** after a short sleep.
-
-Optional: **“model idle timeout”** — merge **`config/openclaw-timeouts.example.json5`** into **`openclaw.json`** only after confirming your **`OPENCLAW_IMAGE`** accepts those keys ([docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)); then **`make restart-dev`**.
+**One-command deploy after initial VM setup:** `./scripts/deploy.sh` or `make deploy`.
 
 ## 6. GCP setup
 
@@ -236,10 +247,12 @@ OpenClaw reads **`openclaw.json`** (JSON5-capable) under `OPENCLAW_CONFIG_DIR`. 
 
 | Target | Action |
 |--------|--------|
-| `make setup` | Run `scripts/setup-server.sh` (sudo on VM) |
-| `make dev` / `make local` | Compose with `docker-compose.dev.yml` (more RAM/CPU; same as local workstation) |
-| `make up` / `down` / `restart` | Lifecycle (`restart` = **`up -d --force-recreate`**, not raw `docker compose restart`) |
-| `make restart-dev` / `restart-local` | Same with **`docker-compose.dev.yml`** (use after **`make local`** / Mac dev) |
+| **`make init`** | **New clone (local):** `.env` → bootstrap → gog → pull → up (recreate) → Telegram → healthz |
+| `make setup-local` | Same as `init` (expects `.env` already) |
+| `make setup` | VM only: `scripts/setup-server.sh` (sudo) |
+| `make dev` / `make local` | Dev compose up (**`--force-recreate`** + gog push); use after `make init` |
+| `make up` / `down` / `restart` | Production compose lifecycle |
+| `make restart-dev` / `restart-local` | Dev compose **`--force-recreate`** + gog push |
 | `make logs` | Tail gateway logs |
 | `make health` | HTTP `/healthz` |
 | `make deploy` / `rollback` | Scripted deploy / git rollback |

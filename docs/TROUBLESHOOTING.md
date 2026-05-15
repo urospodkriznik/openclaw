@@ -188,6 +188,7 @@ Then **`./scripts/docker-compose.sh … down`** and **`up -d`** (cleaner than **
 
 ## Telegram bot silent
 
+- **New clone or moved repo:** use **`make init`** (local) or **`make restart-dev`** — not plain **`docker compose up`** alone. Those targets run **`--force-recreate`** and **`push-gogcli-to-gateway.sh`** (gog is optional for Telegram, but recreate fixes CLI/gateway networking).
 - Re-run channel registration with a fresh token if rotated.
 - Check gateway logs for Telegram adapter errors.
 - Confirm outbound HTTPS is allowed from the VM (NAT/firewall).
