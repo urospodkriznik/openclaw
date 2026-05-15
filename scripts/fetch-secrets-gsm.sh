@@ -57,14 +57,10 @@ if [[ -n "$GEMINI_SECRET" ]]; then
 fi
 places_value=""
 if [[ -n "$PLACES_SECRET" ]]; then
-  if [[ "$PLACES_SECRET" == "GSM_GOOGLE_PLACES_API_KEY_SECRET" ]]; then
-    echo "fetch-secrets-gsm: warning: GSM_GOOGLE_PLACES_API_KEY_SECRET must be your Secret Manager secret *id* in GCP" >&2
-    echo "fetch-secrets-gsm: (value is the env var name, not a secret id — run: gcloud secrets list --project=$PROJECT)" >&2
-  else
-    places_value="$(gcloud secrets versions access latest --secret="$PLACES_SECRET" --project="$PROJECT" 2>/dev/null || true)"
-    if [[ -z "$places_value" ]]; then
-      echo "fetch-secrets-gsm: warning: could not read Secret Manager secret '$PLACES_SECRET' (check id, IAM, or add a secret version)" >&2
-    fi
+  places_value="$(gcloud secrets versions access latest --secret="$PLACES_SECRET" --project="$PROJECT" 2>/dev/null || true)"
+  if [[ -z "$places_value" ]]; then
+    echo "fetch-secrets-gsm: warning: could not read Secret Manager secret '$PLACES_SECRET' (check id, IAM, or add a secret version)" >&2
+    echo "fetch-secrets-gsm: list secrets: gcloud secrets list --project=$PROJECT" >&2
   fi
 fi
 

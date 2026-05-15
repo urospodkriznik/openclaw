@@ -39,11 +39,15 @@ load_env() {
 
 load_env
 
-if [[ -z "${GOOGLE_PLACES_API_KEY:-}" ]]; then
-  echo "setup-places-vm: GOOGLE_PLACES_API_KEY is empty." >&2
-  echo "  Local .env: set GOOGLE_PLACES_API_KEY=AIza…" >&2
-  echo "  GCP GSM: set GSM_GOOGLE_PLACES_API_KEY_SECRET=<secret-id> (not the env var name), then:" >&2
-  echo "    ./scripts/fetch-secrets-gsm.sh" >&2
+places_configured() {
+  [[ -n "${GOOGLE_PLACES_API_KEY:-}" ]] || [[ -n "${GSM_GOOGLE_PLACES_API_KEY_SECRET:-}" ]]
+}
+
+if ! places_configured; then
+  echo "setup-places-vm: configure Places first:" >&2
+  echo "  • Local: GOOGLE_PLACES_API_KEY=AIza… in .env" >&2
+  echo "  • GCP:   GSM_GOOGLE_PLACES_API_KEY_SECRET=<Secret Manager secret id> in .env" >&2
+  echo "         (the secret's NAME in GCP — can match this env var name if you created it that way)" >&2
   exit 1
 fi
 
@@ -63,6 +67,8 @@ load_env
 
 if [[ -z "${GOOGLE_PLACES_API_KEY:-}" ]]; then
   echo "setup-places-vm: still no GOOGLE_PLACES_API_KEY after fetch-secrets-gsm.sh" >&2
+  echo "  Check: USE_GSM_SECRETS=true, secret exists, VM SA has Secret Accessor, secret has a version." >&2
+  echo "  Test:  gcloud secrets versions access latest --secret=\"\$GSM_GOOGLE_PLACES_API_KEY_SECRET\" --project=\"\$GOOGLE_CLOUD_PROJECT\"" >&2
   exit 1
 fi
 
