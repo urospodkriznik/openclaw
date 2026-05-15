@@ -3,7 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MANIFEST="$(./scripts/resolve-deploy-manifest.sh)"
+cd "$ROOT_DIR"
+MANIFEST="$("$ROOT_DIR/scripts/resolve-deploy-manifest.sh")"
 DEPLOY_USER_HOME="${DEPLOY_USER_HOME:-$HOME}"
 
 if ! command -v jq >/dev/null 2>&1; then
