@@ -98,13 +98,14 @@ fi
 
 mkdir -p "$DST"
 
-# After a previous sync, $DST is often 1000:1000 — reclaim so we can copy as you (no sudo copy).
-if [[ ! -w "$DST" ]]; then
-  echo "sync-gog-cli-config: reclaim $DST -> $(id -un):$(id -gn) (for copy)"
+# After a previous sync, $DST is often 1000:1000 — reclaim so we can copy as the deploy user.
+dst_owner="$(stat -c '%U' "$DST" 2>/dev/null || stat -f '%Su' "$DST" 2>/dev/null || echo "")"
+if [[ ! -w "$DST" ]] || [[ -n "$dst_owner" && "$dst_owner" != "$(id -un)" ]]; then
+  echo "sync-gog-cli-config: reclaim $DST -> $(id -un):$(id -gn) (for copy; was ${dst_owner:-unknown})"
   if ! run_sudo_chown -R "$(id -un):$(id -gn)" "$DST"; then
     echo "sync-gog-cli-config: could not chown $DST to your user (passwordless sudo or interactive terminal required)" >&2
-    echo "  For VMs: $(id -un) ALL=(ALL) NOPASSWD: $CHOWN_BIN" >&2
-    echo "  Or run once: sudo \"$CHOWN_BIN\" -R \"$(id -un):$(id -gn)\" \"$DST\"" >&2
+    echo "  Ask an admin: sudo \"$CHOWN_BIN\" -R \"$(id -un):$(id -gn)\" \"$DST\"" >&2
+    echo "  Or: sudo bash -c 'cd $ROOT_DIR && ./scripts/reown-openclaw-mounts.sh --host'" >&2
     exit 1
   fi
 fi
@@ -115,7 +116,7 @@ copy_gogcli_tree() {
     rsync -a "$SRC/" "$DST/"
   elif command -v tar >/dev/null 2>&1; then
     echo "sync-gog-cli-config: tar copy $SRC/ -> $DST/ (rsync not installed; optional: sudo apt install rsync)"
-    (cd "$SRC" && tar cf - .) | (cd "$DST" && tar xf -)
+    (cd "$SRC" && tar cf - .) | (cd "$DST" && tar xf - --no-same-owner --no-same-permissions 2>/dev/null || tar xf - --no-same-owner)
   else
     echo "sync-gog-cli-config: install rsync or tar (e.g. sudo apt install -y rsync)" >&2
     exit 1
