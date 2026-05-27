@@ -70,10 +70,13 @@ jobs:
       - name: Deploy ${{ matrix.instance.id }} (${{ matrix.instance.path }})
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.GCP_VM_HOST }}
+          host: ${{ matrix.instance.host || secrets.GCP_VM_HOST }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_VM_SSH_KEY }}
           port: ${{ steps.ssh_port.outputs.port }}
+          timeout: 120s
+          command_timeout: 15m
+          debug: true
           script_stop: true
           script: |
             set -euo pipefail

@@ -338,6 +338,49 @@ Also confirm **`GEMINI_API_KEY`** / GSM Gemini secret is valid (`gateway` logs f
 
 ## GitHub Actions deploy fails SSH
 
+### `dial tcp …: i/o timeout` (cannot connect at all)
+
+GitHub’s runner never opened TCP to the VM — the deploy script did **not** run. This is almost always **network / firewall / wrong IP**, not application code.
+
+1. **External IP:** `GCP_VM_HOST` must be the VM’s **public** IPv4 (Compute Engine → VM instances → External IP). Internal `10.x` only works from inside the VPC, not from GitHub.
+
+2. **VM running:** Instance status **Running** in GCP.
+
+3. **GCP firewall — allow SSH from the internet** (GitHub Actions uses dynamic IPs; there is no small fixed allowlist):
+
+   ```bash
+   gcloud compute firewall-rules create allow-ssh-github-deploy \
+     --project=YOUR_PROJECT \
+     --direction=INGRESS \
+     --priority=1000 \
+     --network=default \
+     --action=ALLOW \
+     --rules=tcp:22 \
+     --source-ranges=0.0.0.0/0 \
+     --target-tags=YOUR_VM_NETWORK_TAG
+   ```
+
+   Ensure the VM’s network interface has that tag, or use the project’s default-allow-ssh rule if present.
+
+4. **Test from your laptop** (same path as CI):
+
+   ```bash
+   nc -vz YOUR_VM_IP 22
+   ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 YOUR_USER@YOUR_VM_IP true
+   ```
+
+   If this times out, fix GCP/network before re-running Actions.
+
+5. **No SSH on custom port without secret:** If sshd listens on a non-22 port, set GitHub secret **`GCP_VM_PORT`**.
+
+6. **Alternative:** run deploy on the VM (no inbound SSH from GitHub):
+
+   ```bash
+   cd ~/oc_uros && git pull && ./scripts/remote-deploy.sh uros
+   ```
+
+   Or use a **self-hosted** GitHub runner inside the VPC.
+
 ### `ssh: unable to authenticate ... attempted methods [none publickey]`
 
 The runner’s private key (`GCP_VM_SSH_KEY`) must match a **public** key line in **`~/.ssh/authorized_keys`** for **`GCP_VM_USER`** on the VM (same user the workflow connects as).

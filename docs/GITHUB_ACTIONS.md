@@ -89,10 +89,20 @@ make deploy-all
 
 | Secret / variable | Notes |
 |-------------------|--------|
-| `GCP_VM_HOST` | VM IP or hostname |
+| `GCP_VM_HOST` | VM **external** IP or public DNS (not `10.x` internal) |
 | `GCP_VM_USER` | SSH user; must own every `path` in the manifest |
-| `GCP_VM_SSH_KEY` | Private SSH key |
+| `GCP_VM_SSH_KEY` | Private SSH key (passphraseless recommended) |
 | `GCP_VM_PORT` | Optional; default **22** |
+
+**SSH timeout from Actions?** GitHub must reach TCP **22** on the VM. Open GCP ingress for SSH or deploy manually on the VM — see [TROUBLESHOOTING.md](TROUBLESHOOTING.md) § `dial tcp … i/o timeout`.
+
+**Optional per-instance host** in `DEPLOY_INSTANCES_JSON` when clones live on different VMs:
+
+```json
+{"instances":[{"id":"uros","path":"oc_uros","host":"203.0.113.10"},{"id":"serena","path":"oc_serena","host":"203.0.113.11"}]}
+```
+
+If `host` is omitted, `GCP_VM_HOST` is used.
 | `DEPLOY_INSTANCES_JSON` | Optional **variable** (preferred) or **secret** — same JSON as local `deploy/instances.json`; must be on the **same repo** that runs the workflow (one line, no line breaks) |
 
 ## What deploy does (per instance)

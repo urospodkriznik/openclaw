@@ -3,7 +3,7 @@
     {
       "id": "default",
       "path": "openclaw",
-      "comment": "Single-agent default: clone this repo to ~/openclaw on the VM. Copy to deploy/instances.json to customize (that file is gitignored)."
+      "comment": "Single-agent default: clone this repo to ~/openclaw on the VM. Copy to deploy/instances.json to customize (that file is gitignored). Optional: host per instance for multi-VM (else GitHub secret GCP_VM_HOST)."
     }
   ]
 }
