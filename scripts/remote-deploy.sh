@@ -29,6 +29,7 @@ export VALIDATION_LEVEL="${VALIDATION_LEVEL:-full}"
 
 ./scripts/reown-openclaw-mounts.sh --host
 ./scripts/bootstrap-config.sh
+./scripts/sync-operator-workspace.sh "${INSTANCE_ID:-}"
 ./scripts/align-gmail-watcher-env.sh
 ./scripts/validate-env.sh
 ./scripts/fetch-secrets-gsm.sh

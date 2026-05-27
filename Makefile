@@ -5,7 +5,7 @@ COMPOSE ?= ./scripts/docker-compose.sh
 COMPOSE_FILES :=
 DEV_FILES := -f docker-compose.dev.yml
 
-.PHONY: setup init init-vm setup-local setup-vm setup-gog setup-places wipe-vm dev local up down restart restart-dev restart-local logs health deploy deploy-all deploy-instances-init rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog install-goplaces-linux verify-goplaces
+.PHONY: setup init init-vm setup-local setup-vm setup-gog setup-places sync-operator-workspace wipe-vm dev local up down restart restart-dev restart-local logs health deploy deploy-all deploy-instances-init rollback clean validate backup sync-gog-config push-gog-gateway install-gog-linux verify-gog install-goplaces-linux verify-goplaces
 
 # GCP VM base packages (sudo). For local Docker workstation use: make init
 setup:
@@ -32,6 +32,10 @@ setup-gog:
 # Google Places (goplaces) on Linux VM — after GSM key or GOOGLE_PLACES_API_KEY in .env
 setup-places:
 	@./scripts/setup-places-vm.sh
+
+# Push config/operator/*.md into workspace/ (safe for deploy; does not touch memory/ or SOUL.md)
+sync-operator-workspace:
+	@./scripts/sync-operator-workspace.sh
 
 # Remove containers + .openclaw-* state on a VM; keeps .env unless scripts/wipe-vm-state.sh --full
 wipe-vm:

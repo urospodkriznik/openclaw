@@ -232,6 +232,9 @@ step "Bootstrap OpenClaw config"
 ./scripts/bootstrap-config.sh
 ensure_config_mount_perms
 
+step "Sync operator workspace instructions (TOOLS.md, AGENTS.md)"
+./scripts/sync-operator-workspace.sh "${OPENCLAW_INSTANCE_ID:-}"
+
 step "Align Gmail watcher env (if hooks enabled)"
 ./scripts/align-gmail-watcher-env.sh
 

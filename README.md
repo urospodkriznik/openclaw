@@ -251,6 +251,8 @@ Add images under `docs/screenshots/` in your fork.
 
 OpenClaw reads **`openclaw.json`** (JSON5-capable) under `OPENCLAW_CONFIG_DIR`. This repo ships fragments in [config/](config/); `scripts/bootstrap-config.sh` writes **`exec-approvals.json`** and either **creates** a minimal **`openclaw.json`** or **merges** **`agents.defaults.model.primary`** + **`tools.exec`** into an existing file when you switch **`LLM_PROVIDER`** or autonomy flags.
 
+**Operator instructions (all clones / VMs):** edit [config/operator/TOOLS.md](config/operator/TOOLS.md) and [config/operator/AGENTS.md](config/operator/AGENTS.md), then `make deploy` or `make sync-operator-workspace`. See [config/operator/README.md](config/operator/README.md). Does not overwrite user memory or `SOUL.md`.
+
 ## Makefile
 
 | Target | Action |

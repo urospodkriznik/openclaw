@@ -14,6 +14,7 @@ One-page path for a **fresh Linux VM** (Gemini + Telegram + optional gog + GitHu
 | 6 | VM | `gog auth …` on host (see below) → **`make setup-gog`** |
 | 6b | VM | Places: GSM secret + **`make setup-places`** (optional) |
 | 7 | Telegram | Message bot → `/approve` if needed → `/new` |
+| 8 | Operator | Edit **`config/operator/TOOLS.md`** in git → **`make deploy`** updates all clones (users send `/new`) |
 
 **Mac:** stop local stack if it uses the same Telegram bot.
 
@@ -105,6 +106,19 @@ That runs `fetch-secrets-gsm.sh`, installs Linux `goplaces`, recreates the gatew
 **Telegram:** `/new` → share **Location** → ask for nearby restaurants (e.g. vegan, 2 km).
 
 If `fetch-secrets-gsm` warns about Places, fix the GSM secret **id** (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)).
+
+## 4c. Operator instructions (all agents / all VMs)
+
+Skill usage rules (e.g. **goplaces**, Maps links, **gog**) live in **`config/operator/`** and are copied into each clone’s **`workspace/TOOLS.md`** and **`workspace/AGENTS.md`** on init and deploy.
+
+- **Edit once in git:** `config/operator/TOOLS.md`, `config/operator/AGENTS.md`
+- **Roll out:** `make deploy` or `make deploy-all` (runs `sync-operator-workspace.sh`)
+- **Does not touch:** `memory/`, `SOUL.md`, `USER.md`, or user files like `workspace/joke.md`
+- **Per-instance overrides (optional):** `config/operator/instances/<id>/TOOLS.md`
+
+After deploy, users should send **`/new`** in Telegram once.
+
+Manual sync on one clone: `make sync-operator-workspace`
 
 ## 5. Telegram
 

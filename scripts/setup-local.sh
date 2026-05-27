@@ -141,6 +141,9 @@ docker_ready
 step "Bootstrap OpenClaw config (openclaw.json + exec-approvals.json)"
 ./scripts/bootstrap-config.sh
 
+step "Sync operator workspace instructions (TOOLS.md, AGENTS.md)"
+./scripts/sync-operator-workspace.sh
+
 step "Validate .env"
 ./scripts/validate-env.sh
 
