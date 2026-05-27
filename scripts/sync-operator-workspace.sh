@@ -61,7 +61,7 @@ extract_operator_block() {
 }
 
 merge_agents_md() {
-  local src dst block tmp
+  local src dst block
   src="$(resolve_operator_file "AGENTS.md")"
   dst="${WORKSPACE_DIR}/AGENTS.md"
   mkdir -p "$WORKSPACE_DIR"
