@@ -77,8 +77,11 @@ jobs:
         run: |
           ./scripts/sync-bootstrap-env-keys.sh
           ./scripts/bootstrap-config.sh
-          jq -e '.agents.defaults.heartbeat.every == "30m"' .openclaw-config/openclaw.json
-          jq -e '.agents.defaults.heartbeat.target == "last"' .openclaw-config/openclaw.json
+          hb_every="$(grep '^OPENCLAW_HEARTBEAT_EVERY=' .env | tail -n1 | cut -d= -f2- | tr -d ' \"')"
+          hb_target="$(grep '^OPENCLAW_HEARTBEAT_TARGET=' .env | tail -n1 | cut -d= -f2- | tr -d ' \"')"
+          jq -e --arg every "$hb_every" --arg target "$hb_target" \
+            '.agents.defaults.heartbeat.every == $every and .agents.defaults.heartbeat.target == $target' \
+            .openclaw-config/openclaw.json
 
       - name: Docker Compose config
         run: |
