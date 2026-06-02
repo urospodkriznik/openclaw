@@ -59,6 +59,107 @@ resolve_primary_model() {
 
 PRIMARY_MODEL="$(resolve_primary_model)"
 
+# Build agents.defaults.heartbeat JSON from OPENCLAW_HEARTBEAT_* (.env).
+# OPENCLAW_HEARTBEAT_EVERY=0m disables. Unset OPENCLAW_HEARTBEAT_EVERY skips merge (keeps existing json).
+build_heartbeat_json() {
+  if [[ -z "${OPENCLAW_HEARTBEAT_EVERY+x}" ]]; then
+    echo "null"
+    return 0
+  fi
+  local every="${OPENCLAW_HEARTBEAT_EVERY}"
+  if truthy "${OPENCLAW_HEARTBEAT_DISABLED:-false}"; then
+    every="0m"
+  fi
+  case "$(printf '%s' "$every" | tr '[:upper:]' '[:lower:]')" in
+    0 | 0m | off | false | disable | disabled) every="0m" ;;
+  esac
+
+  local target="${OPENCLAW_HEARTBEAT_TARGET:-last}"
+  local model="${OPENCLAW_HEARTBEAT_MODEL:-}"
+  local ah_start="${OPENCLAW_HEARTBEAT_ACTIVE_HOURS_START:-}"
+  local ah_end="${OPENCLAW_HEARTBEAT_ACTIVE_HOURS_END:-}"
+  local ah_tz="${OPENCLAW_HEARTBEAT_ACTIVE_HOURS_TIMEZONE:-}"
+
+  local inc_reasoning=false light_ctx=false isolated=false skip_busy=false
+  truthy "${OPENCLAW_HEARTBEAT_INCLUDE_REASONING:-false}" && inc_reasoning=true
+  truthy "${OPENCLAW_HEARTBEAT_LIGHT_CONTEXT:-false}" && light_ctx=true
+  truthy "${OPENCLAW_HEARTBEAT_ISOLATED_SESSION:-false}" && isolated=true
+  truthy "${OPENCLAW_HEARTBEAT_SKIP_WHEN_BUSY:-true}" && skip_busy=true
+
+  jq -n \
+    --arg every "$every" \
+    --arg target "$target" \
+    --arg model "$model" \
+    --arg ah_start "$ah_start" \
+    --arg ah_end "$ah_end" \
+    --arg ah_tz "$ah_tz" \
+    --argjson includeReasoning "$inc_reasoning" \
+    --argjson lightContext "$light_ctx" \
+    --argjson isolatedSession "$isolated" \
+    --argjson skipWhenBusy "$skip_busy" \
+    '
+    {
+      every: $every,
+      target: $target,
+      includeReasoning: $includeReasoning,
+      lightContext: $lightContext,
+      isolatedSession: $isolatedSession,
+      skipWhenBusy: $skipWhenBusy
+    }
+    + (if ($model | length) > 0 then { model: $model } else {} end)
+    + (
+      if ($ah_start | length) > 0 and ($ah_end | length) > 0 then
+        if ($ah_tz | length) > 0 then
+          { activeHours: { start: $ah_start, end: $ah_end, timezone: $ah_tz } }
+        else
+          { activeHours: { start: $ah_start, end: $ah_end } }
+        end
+      else
+        {}
+      end
+    )
+    '
+}
+
+HEARTBEAT_JSON="$(build_heartbeat_json)"
+
+AGENT_TIMEOUTS_JSON="null"
+if truthy "${OPENCLAW_AGENT_TIMEOUTS_ENABLED:-false}"; then
+  : "${OPENCLAW_AGENT_TIMEOUT_SECONDS:=300}"
+  : "${OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS:=300}"
+  AGENT_TIMEOUTS_JSON="$(jq -n \
+    --argjson turn "$OPENCLAW_AGENT_TIMEOUT_SECONDS" \
+    --argjson idle "$OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS" \
+    '{turn: $turn, idle: $idle}')"
+fi
+
+# Shared jq: model.primary, tools.exec, optional heartbeat + agent timeouts.
+jq_merge_agent_defaults() {
+  local input="$1"
+  local tmp="${OPENCLAW_JSON}.tmp"
+  local jq_args=(
+    --arg primary "$PRIMARY_MODEL"
+    --arg sec "$TOOLS_SECURITY"
+    --arg ask "$TOOLS_ASK"
+    --argjson heartbeat "$HEARTBEAT_JSON"
+    --argjson agentTimeouts "$AGENT_TIMEOUTS_JSON"
+  )
+  jq "${jq_args[@]}" '
+    .agents //= {}
+    | .agents.defaults //= {}
+    | .agents.defaults.model //= {}
+    | .agents.defaults.model.primary = $primary
+    | .tools //= {}
+    | .tools.exec = { host: "gateway", security: $sec, ask: $ask }
+    | if $heartbeat != null then .agents.defaults.heartbeat = $heartbeat else . end
+    | if $agentTimeouts != null then
+        .agents.defaults.timeoutSeconds = $agentTimeouts.turn
+        | .agents.defaults.llm = { idleTimeoutSeconds: $agentTimeouts.idle }
+      else . end
+  ' "$input" >"$tmp"
+  mv "$tmp" "$OPENCLAW_JSON"
+}
+
 # openai/gpt-* on recent images routes via Codex unless models.providers.openai is complete.
 # A bare models.providers.openai.agentRuntime object crashes the gateway (missing baseUrl/models).
 # Use `openclaw doctor --fix` after the stack is healthy — see docs/TROUBLESHOOTING.md.
@@ -176,21 +277,10 @@ fi
 write_openclaw_json() {
   local tmp="${OPENCLAW_JSON}.tmp"
   if [[ -f "$OPENCLAW_JSON" ]] && jq -e 'type == "object"' "$OPENCLAW_JSON" >/dev/null 2>&1; then
-    if jq --arg primary "$PRIMARY_MODEL" \
-      --arg sec "$TOOLS_SECURITY" \
-      --arg ask "$TOOLS_ASK" \
-      '
-      .agents //= {}
-      | .agents.defaults //= {}
-      | .agents.defaults.model //= {}
-      | .agents.defaults.model.primary = $primary
-      | .tools //= {}
-      | .tools.exec = { host: "gateway", security: $sec, ask: $ask }
-      ' "$OPENCLAW_JSON" >"$tmp" 2>/dev/null; then
-      mv "$tmp" "$OPENCLAW_JSON"
+    if jq_merge_agent_defaults "$OPENCLAW_JSON" 2>/dev/null; then
       return 0
     fi
-    rm -f "$tmp"
+    rm -f "${OPENCLAW_JSON}.tmp"
   fi
   jq -n \
     --arg primary "$PRIMARY_MODEL" \
@@ -209,11 +299,19 @@ write_openclaw_json() {
     tools: { exec: { host: "gateway", security: $sec, ask: $ask } }
   }' >"$tmp"
   mv "$tmp" "$OPENCLAW_JSON"
+  jq_merge_agent_defaults "$OPENCLAW_JSON"
 }
 
 write_openclaw_json
 
-echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL)"
+hb_note=""
+if [[ "$HEARTBEAT_JSON" != "null" ]]; then
+  hb_note=" heartbeat=$(echo "$HEARTBEAT_JSON" | jq -c '.every + " target=" + .target')"
+fi
+echo "bootstrap-config: wrote $OPENCLAW_JSON and $EXEC_FILE (primary=$PRIMARY_MODEL${hb_note})"
+if truthy "${OPENCLAW_AGENT_TIMEOUTS_ENABLED:-false}"; then
+  echo "bootstrap-config: agent timeouts enabled (turn=${OPENCLAW_AGENT_TIMEOUT_SECONDS:-300}s idle=${OPENCLAW_LLM_IDLE_TIMEOUT_SECONDS:-300}s) — if /healthz fails, set OPENCLAW_AGENT_TIMEOUTS_ENABLED=false"
+fi
 openai_post_bootstrap_hint
 if truthy "${TRUSTED_HEADLESS_EXEC:-false}" && truthy "${I_ACCEPT_HEADLESS_EXEC_RISK:-}" && ! truthy "${FULL_AUTONOMY:-false}"; then
   echo "Headless exec: tools.exec + exec-approvals use security=full ask=off (no Control UI). Gmail/Calendar/Drive need skills + OAuth per docs/GOOGLE_INTEGRATIONS.md."

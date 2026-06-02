@@ -39,6 +39,7 @@ jobs:
             scripts/validate-env.sh \
             scripts/fetch-secrets-gsm.sh \
             scripts/bootstrap-config.sh \
+            scripts/sync-bootstrap-env-keys.sh \
             scripts/reown-openclaw-mounts.sh \
             scripts/docker-compose.sh \
             scripts/sync-gog-cli-config.sh \
@@ -71,6 +72,13 @@ jobs:
 
       - name: Validate env script (minimal)
         run: ./scripts/validate-env.sh
+
+      - name: Bootstrap config (heartbeat from .env)
+        run: |
+          ./scripts/sync-bootstrap-env-keys.sh
+          ./scripts/bootstrap-config.sh
+          jq -e '.agents.defaults.heartbeat.every == "30m"' .openclaw-config/openclaw.json
+          jq -e '.agents.defaults.heartbeat.target == "last"' .openclaw-config/openclaw.json
 
       - name: Docker Compose config
         run: |

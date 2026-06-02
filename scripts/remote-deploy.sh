@@ -27,6 +27,7 @@ fi
 
 export VALIDATION_LEVEL="${VALIDATION_LEVEL:-full}"
 
+./scripts/sync-bootstrap-env-keys.sh
 ./scripts/reown-openclaw-mounts.sh --host
 ./scripts/bootstrap-config.sh
 ./scripts/sync-operator-workspace.sh "${INSTANCE_ID:-}"

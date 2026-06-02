@@ -249,7 +249,7 @@ Add images under `docs/screenshots/` in your fork.
 
 ## Config examples
 
-OpenClaw reads **`openclaw.json`** (JSON5-capable) under `OPENCLAW_CONFIG_DIR`. This repo ships fragments in [config/](config/); `scripts/bootstrap-config.sh` writes **`exec-approvals.json`** and either **creates** a minimal **`openclaw.json`** or **merges** **`agents.defaults.model.primary`** + **`tools.exec`** into an existing file when you switch **`LLM_PROVIDER`** or autonomy flags.
+OpenClaw reads **`openclaw.json`** (JSON5-capable) under `OPENCLAW_CONFIG_DIR`. This repo ships fragments in [config/](config/); `scripts/bootstrap-config.sh` writes **`exec-approvals.json`** and either **creates** a minimal **`openclaw.json`** or **merges** **`agents.defaults.model.primary`**, **`tools.exec`**, and optional **`agents.defaults.heartbeat`** (from **`OPENCLAW_HEARTBEAT_*`** in `.env`) into an existing file when you switch **`LLM_PROVIDER`**, autonomy, or heartbeat settings. On **`make deploy`** / GitHub push, **`scripts/sync-bootstrap-env-keys.sh`** appends any new bootstrap keys from **`.env.example`** to the VM’s **`.env`** without overwriting secrets, then bootstrap runs.
 
 **Operator instructions (all clones / VMs):** edit [config/operator/TOOLS.md](config/operator/TOOLS.md) and [config/operator/AGENTS.md](config/operator/AGENTS.md), then `make deploy` or `make sync-operator-workspace`. See [config/operator/README.md](config/operator/README.md). Does not overwrite user memory or `SOUL.md`.
 

@@ -110,6 +110,10 @@ main() {
   fi
   sync_tools_md
   merge_agents_md
+  if [[ -f "${OPERATOR_DIR}/HEARTBEAT.md" ]]; then
+    cp -f "${OPERATOR_DIR}/HEARTBEAT.md" "${WORKSPACE_DIR}/HEARTBEAT.md"
+    echo "sync-operator-workspace: wrote ${WORKSPACE_DIR}/HEARTBEAT.md"
+  fi
   if [[ -n "$INSTANCE_ID" ]]; then
     echo "sync-operator-workspace: instance overrides id=$INSTANCE_ID"
   fi
