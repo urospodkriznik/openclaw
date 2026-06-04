@@ -6,6 +6,25 @@
 
 **Cloneable portfolio project:** run the [OpenClaw](https://docs.openclaw.ai/) gateway with **Docker Compose**, **Gemini (Google AI API key)**, and **Telegram**—on **your Mac or Linux workstation** (secrets in `.env`, optional **gog** for Google Workspace) or on **Google Cloud** with **GitHub Actions** deploy over SSH and optional **Secret Manager**—without committing secrets.
 
+## What this is
+
+A personal deployment setup I built to learn AI agent infrastructure on GCP.
+Starting from the OpenClaw gateway, I built the full deployment layer around it:
+Dockerised stack, GitHub Actions CI/CD over SSH, GCP Secret Manager integration,
+autonomy mode configuration, and scripts to make the whole thing reproducible
+on both local Docker and a GCP VM without committing secrets.
+
+The goal was to understand how to deploy and operate an AI agent in a real
+cloud environment — not just run it locally.
+
+**What I added on top of the base OpenClaw image:**
+- Full GCP VM deployment with SSH-based GitHub Actions CD pipeline
+- Secret Manager integration (`USE_GSM_SECRETS`) as alternative to `.env`
+- Bootstrap and validation scripts for non-interactive setup
+- Makefile targets for local and production lifecycle management
+- Documented autonomy modes mapped to exec approval policies
+- Cost estimates and troubleshooting docs for GCP deployment
+
 ## 1. Project overview
 
 This repository is a **deployment template**, not the upstream OpenClaw monorepo. It pins the official container image [`ghcr.io/openclaw/openclaw`](https://github.com/openclaw/openclaw/pkgs/container/openclaw), adds production-oriented scripts, CI/CD, and documentation so others can reproduce your stack quickly.
