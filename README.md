@@ -45,7 +45,7 @@ flowchart LR
     GmailOpt[Gmail_hooks_optional]
   end
   subgraph gcp [GCP]
-    VM[e2_micro_VM]
+    VM[e2_small_VM]
     Gemini[Gemini_API_Google_AI]
     SA[Service_account_ADC_GSM]
   end
@@ -81,7 +81,7 @@ flowchart LR
 - A **Telegram Bot token** from [@BotFather](https://t.me/BotFather).
 - **GitHub** (optional) for Actions deploy.
 
-**RAM:** OpenClaw’s docs recommend **~2 GB** for comfortable operation. **e2-micro (1 GB)** is a **fragile PoC**—use **4 GB swap** and a prebuilt image only, or move to **e2-small / e2-medium**. See [docs/COSTS.md](docs/COSTS.md).
+**RAM:** OpenClaw’s docs recommend **~2 GB** for comfortable operation. **e2-micro (2 GB)** is a **fragile PoC**—use **4 GB swap** and a prebuilt image only, or move to **e2-small / e2-medium**. See [docs/COSTS.md](docs/COSTS.md).
 
 ## 5. Quick start
 
